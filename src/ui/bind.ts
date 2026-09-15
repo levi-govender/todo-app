@@ -34,8 +34,15 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
     });
   });
 
-  search.addEventListener("input", () => app.setSearch(search.value));
-  search.addEventListener("change", () => app.setSearch(search.value));
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
+  search.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => app.setSearch(search.value), 200);
+  });
+  search.addEventListener("change", () => {
+    clearTimeout(searchTimer);
+    app.setSearch(search.value);
+  });
   filter.addEventListener("change", () => {
     if (filter.value === "completed") app.setCompletedFilter(true);
     else if (filter.value === "active") app.setCompletedFilter(false);
