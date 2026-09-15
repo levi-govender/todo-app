@@ -2,12 +2,14 @@ import type { StorageAdapter, StorageMode } from "./adapter.ts";
 import { StorageUnavailableError } from "./adapter.ts";
 import { IndexedDbStorageAdapter } from "./indexeddb.ts";
 import { MemoryStorageAdapter } from "./memory.ts";
+import { ScalableStorageAdapter } from "./scalable.ts";
 
 export type AdapterFactory = () => StorageAdapter;
 
 const factories = new Map<StorageMode, AdapterFactory>([
   ["ephemeral", () => new MemoryStorageAdapter()],
   ["persistent", () => new IndexedDbStorageAdapter()],
+  ["scalable", () => new ScalableStorageAdapter()],
 ]);
 
 export function registerAdapter(id: StorageMode, factory: AdapterFactory): void {

@@ -6,7 +6,7 @@ The UI never talks to IndexedDB, memory, or any other persistence API. It talks 
 index.html  →  bindUi()  →  TodoApp  →  StorageAdapter
                                       ├─ MemoryStorageAdapter (ephemeral)
                                       ├─ IndexedDbStorageAdapter (persistent)
-                                      └─ Scalable adapter (later)
+                                      └─ ScalableStorageAdapter (indexed + paged)
 ```
 
 ## Domain
@@ -43,4 +43,8 @@ Adapters register in `src/storage/registry.ts`. Changing the storage selector re
 
 `IndexedDbStorageAdapter` in `src/storage/indexeddb.ts` stores todos in the `todo-app` database, object store `todos`, schema version `1`. Indexes exist on `completed`, `createdAt`, `updatedAt`, and `title`. Writes run in IndexedDB transactions. Corrupt rows are skipped during `query()` so one bad record cannot hide the rest of the list.
 
-The selected mode is remembered in `localStorage` (`todo-app.storageMode`) so a refresh in persistent mode reloads the same dataset.
+The selected mode is remembered in `localStorage` (`todo-app.storageMode`) so a refresh in persistent or scalable mode reloads the same dataset.
+
+## Scalable mode
+
+`ScalableStorageAdapter` in `src/storage/scalable.ts` uses a separate IndexedDB database (`todo-app-scalable`) so it never shares rows with persistent mode. Queries walk `createdAt` / `updatedAt` / `title` indexes with keyset cursors. Each page keeps at most the requested limit in memory; the UI shows one page at a time via **Next page**. Completion filters and substring search skip non-matching rows during the cursor walk instead of `getAll()`.

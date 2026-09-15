@@ -12,6 +12,7 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
   const sort = must<HTMLSelectElement>(root, "#todo-sort");
   const mode = must<HTMLSelectElement>(root, "#storage-mode");
   const modeNote = must(root, "#storage-note");
+  const loadMore = must<HTMLButtonElement>(root, "#load-more");
   const seedPanel = root.querySelector("#seed-panel");
   const seedForm = root.querySelector("#seed-form");
   const seedInput = root.querySelector<HTMLInputElement>("#seed-value");
@@ -61,6 +62,9 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
   clearButton?.addEventListener("click", () => {
     void app.clearAll();
   });
+  loadMore.addEventListener("click", () => {
+    void app.loadMore();
+  });
 
   list.addEventListener("change", (event) => {
     const target = event.target;
@@ -101,8 +105,11 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
     formError.textContent = state.error ?? "";
     status.textContent = state.loading
       ? "Loading todos…"
-      : `${state.total} todo${state.total === 1 ? "" : "s"}`;
+      : state.total === 0
+        ? "0 todos"
+        : `Showing ${state.items.length} of ${state.total} todo${state.total === 1 ? "" : "s"}`;
     empty.hidden = state.items.length > 0 || state.loading;
+    loadMore.hidden = !state.nextCursor || state.loading;
     list.replaceChildren(...state.items.map((todo) => renderItem(todo, state.editingId === todo.id)));
   }
 }

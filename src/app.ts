@@ -9,9 +9,12 @@ import {
 import { createAdapter } from "./storage/registry.ts";
 import { loadStorageMode, saveStorageMode } from "./storage/settings.ts";
 
+export const LIST_PAGE_SIZE = 50;
+
 export type AppState = {
   items: Todo[];
   total: number;
+  nextCursor: string | null;
   query: Required<Pick<TodoQuery, "sortBy" | "sortDir">> & {
     search: string;
     completed: boolean | null;
@@ -31,6 +34,7 @@ export class TodoApp {
   private state: AppState = {
     items: [],
     total: 0,
+    nextCursor: null,
     query: {
       search: "",
       completed: null,
@@ -75,6 +79,7 @@ export class TodoApp {
         mode: this.adapter.id,
         modeNote: modeNote(this.adapter),
         editingId: null,
+        nextCursor: null,
       });
       await this.reload();
     });
@@ -164,6 +169,26 @@ export class TodoApp {
     this.patch({ editingId: null });
   }
 
+  async loadMore(): Promise<void> {
+    const cursor = this.state.nextCursor;
+    if (!cursor) return;
+    await this.run(async () => {
+      const result = await this.adapter.query({
+        search: this.state.query.search,
+        completed: this.state.query.completed,
+        sortBy: this.state.query.sortBy,
+        sortDir: this.state.query.sortDir,
+        cursor,
+        limit: LIST_PAGE_SIZE,
+      });
+      this.patch({
+        items: result.items,
+        total: result.total,
+        nextCursor: result.nextCursor,
+      });
+    });
+  }
+
   private async refresh(): Promise<void> {
     await this.run(() => this.reload());
   }
@@ -174,9 +199,9 @@ export class TodoApp {
       completed: this.state.query.completed,
       sortBy: this.state.query.sortBy,
       sortDir: this.state.query.sortDir,
-      limit: 50,
+      limit: LIST_PAGE_SIZE,
     });
-    this.patch({ items: result.items, total: result.total });
+    this.patch({ items: result.items, total: result.total, nextCursor: result.nextCursor });
   }
 
   private async run(work: () => Promise<void>): Promise<void> {
@@ -197,8 +222,11 @@ export class TodoApp {
 }
 
 function modeNote(adapter: StorageAdapter): string {
-  if (!adapter.capabilities.persistsAcrossReload) {
+  if (adapter.id === "ephemeral") {
     return "Ephemeral mode stores todos in memory only. Refreshing the page clears the list.";
+  }
+  if (adapter.id === "scalable") {
+    return "Scalable mode stores todos in a separate IndexedDB and pages the list through indexes so 10k+ records stay out of the DOM.";
   }
   return "Persistent mode stores todos in IndexedDB. They survive refresh and browser restart.";
 }
