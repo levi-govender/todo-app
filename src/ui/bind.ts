@@ -211,7 +211,7 @@ function renderItem(
       ${
         todo.image
           ? `<button type="button" data-action="remove-image">Remove image</button>`
-          : `<label class="todo-attach">Add image<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" /></label>`
+          : `<label class="todo-attach">Add image<input class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,image/gif" /></label>`
       }
     </div>
   `;

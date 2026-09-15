@@ -8,10 +8,13 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "bench": "vitest run src/perf/harness.test.ts"
+    "bench": "vitest run src/perf/harness.test.ts",
+    "a11y": "vitest run src/ui/a11y.test.ts"
   },
   "devDependencies": {
+    "axe-core": "^4.13.0",
     "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.14.5",
     "typescript": "^5.9.2",
     "vite": "^7.1.5",
     "vitest": "^3.2.4"

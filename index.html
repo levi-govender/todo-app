@@ -13,7 +13,7 @@
         <p class="lede">Create, complete, edit, and find todos. Storage is swapped behind one adapter contract.</p>
         <div class="panel">
           <label for="storage-mode">Storage mode</label>
-          <select id="storage-mode">
+          <select id="storage-mode" aria-describedby="storage-note">
             <option value="ephemeral">Ephemeral (memory)</option>
             <option value="persistent">Persistent (IndexedDB)</option>
             <option value="scalable">Scalable (10k+)</option>
@@ -92,7 +92,7 @@
           <h2 id="list-heading">Todos</h2>
           <p id="list-status" role="status"></p>
           <p id="empty-state">No todos yet. Add one above.</p>
-          <ul id="todo-list"></ul>
+          <ul id="todo-list" aria-labelledby="list-heading"></ul>
           <button type="button" id="load-more" hidden>Next page</button>
         </section>
       </main>
