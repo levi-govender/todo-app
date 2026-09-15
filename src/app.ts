@@ -6,6 +6,7 @@ import {
   type TodoQuery,
 } from "./storage/adapter.ts";
 import { createAdapter } from "./storage/registry.ts";
+import { loadStorageMode, saveStorageMode } from "./storage/settings.ts";
 
 export type AppState = {
   items: Todo[];
@@ -42,7 +43,7 @@ export class TodoApp {
     modeNote: "",
   };
 
-  constructor(adapter: StorageAdapter = createAdapter("ephemeral")) {
+  constructor(adapter: StorageAdapter = createAdapter(loadStorageMode())) {
     this.adapter = adapter;
     this.state.mode = adapter.id;
     this.state.modeNote = modeNote(adapter);
@@ -61,6 +62,21 @@ export class TodoApp {
   async start(): Promise<void> {
     await this.adapter.init();
     await this.refresh();
+  }
+
+  async setMode(mode: StorageMode): Promise<void> {
+    if (mode === this.adapter.id) return;
+    await this.run(async () => {
+      this.adapter = createAdapter(mode);
+      await this.adapter.init();
+      saveStorageMode(mode);
+      this.patch({
+        mode: this.adapter.id,
+        modeNote: modeNote(this.adapter),
+        editingId: null,
+      });
+      await this.reload();
+    });
   }
 
   async create(title: string): Promise<void> {
@@ -167,11 +183,14 @@ function modeNote(adapter: StorageAdapter): string {
   if (!adapter.capabilities.persistsAcrossReload) {
     return "Ephemeral mode stores todos in memory only. Refreshing the page clears the list.";
   }
-  return `${adapter.label} is active.`;
+  return "Persistent mode stores todos in IndexedDB. They survive refresh and browser restart.";
 }
 
 function toUserMessage(error: unknown): string {
-  if (error instanceof TodoValidationError || error instanceof StorageNotFoundError) {
+  if (
+    error instanceof TodoValidationError ||
+    error instanceof StorageNotFoundError
+  ) {
     return error.message;
   }
   if (error instanceof Error) return error.message;
