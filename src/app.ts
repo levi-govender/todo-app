@@ -5,6 +5,7 @@ import {
   type StorageAdapter,
   type StorageMode,
   StorageNotFoundError,
+  StorageUnavailableError,
   type TodoQuery,
 } from "./storage/adapter.ts";
 import { createAdapter } from "./storage/registry.ts";
@@ -23,6 +24,7 @@ export type AppState = {
   };
   loading: boolean;
   error: string | null;
+  retryable: boolean;
   editingId: string | null;
   imageUrls: Record<string, string>;
   mode: StorageMode;
@@ -49,6 +51,7 @@ export class TodoApp {
     },
     loading: false,
     error: null,
+    retryable: false,
     editingId: null,
     imageUrls: {},
     mode: "ephemeral",
@@ -72,15 +75,52 @@ export class TodoApp {
   }
 
   async start(): Promise<void> {
-    await this.adapter.init();
+    try {
+      await this.adapter.init();
+    } catch (error) {
+      if (this.adapter.id === "ephemeral") {
+        this.patch({ error: toUserMessage(error), retryable: true, loading: false });
+        return;
+      }
+      this.adapter = createAdapter("ephemeral");
+      await this.adapter.init();
+      await this.refresh();
+      this.patch({
+        mode: this.adapter.id,
+        modeNote: modeNote(this.adapter),
+        error: `${toUserMessage(error)} Using ephemeral storage for this session.`,
+        retryable: true,
+        loading: false,
+      });
+      return;
+    }
     await this.refresh();
+  }
+
+  async retry(): Promise<void> {
+    await this.run(async () => {
+      const preferred = loadStorageMode();
+      this.adapter = createAdapter(preferred);
+      await this.adapter.init();
+      this.clearImageCache();
+      this.patch({
+        mode: this.adapter.id,
+        modeNote: modeNote(this.adapter),
+        editingId: null,
+        nextCursor: null,
+        imageUrls: {},
+        retryable: false,
+      });
+      await this.reload();
+    });
   }
 
   async setMode(mode: StorageMode): Promise<void> {
     if (mode === this.adapter.id) return;
     await this.run(async () => {
-      this.adapter = createAdapter(mode);
-      await this.adapter.init();
+      const next = createAdapter(mode);
+      await next.init();
+      this.adapter = next;
       saveStorageMode(mode);
       this.clearImageCache();
       this.patch({
@@ -89,6 +129,7 @@ export class TodoApp {
         editingId: null,
         nextCursor: null,
         imageUrls: {},
+        retryable: false,
       });
       await this.reload();
     });
@@ -313,12 +354,12 @@ export class TodoApp {
 
   private async run(work: () => Promise<void>): Promise<void> {
     const seq = ++this.querySeq;
-    this.patch({ loading: true, error: null });
+    this.patch({ loading: true, error: null, retryable: false });
     try {
       await work();
     } catch (error) {
       if (seq !== this.querySeq) return;
-      this.patch({ error: toUserMessage(error) });
+      this.patch({ error: toUserMessage(error), retryable: error instanceof StorageUnavailableError });
     } finally {
       if (seq === this.querySeq) this.patch({ loading: false });
     }
@@ -344,7 +385,8 @@ function toUserMessage(error: unknown): string {
   if (
     error instanceof TodoValidationError ||
     error instanceof ImageValidationError ||
-    error instanceof StorageNotFoundError
+    error instanceof StorageNotFoundError ||
+    error instanceof StorageUnavailableError
   ) {
     return error.message;
   }

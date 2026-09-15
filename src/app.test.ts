@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TodoApp } from "./app.ts";
 import type { StorageAdapter, TodoQuery, TodoQueryResult } from "./storage/adapter.ts";
+import { StorageUnavailableError } from "./storage/adapter.ts";
 import { createTodo, type CreateTodoInput, type Todo, type UpdateTodoInput } from "./domain/todo.ts";
 
 class DelayedSearchAdapter implements StorageAdapter {
@@ -91,5 +92,58 @@ describe("TodoApp image lazy load", () => {
     expect(fetches).toBe(1);
     expect(app.getState().imageUrls[id ?? ""]).toBeTruthy();
     expect(app.imageLoadCount()).toBe(1);
+  });
+});
+
+describe("TodoApp storage failure", () => {
+  it("does not keep a successful list after a failed write", async () => {
+    const adapter = new DelayedSearchAdapter(() => 0);
+    adapter.create = async () => {
+      throw new StorageUnavailableError("write failed");
+    };
+    const app = new TodoApp(adapter);
+    await app.start();
+    await app.create("Should not appear");
+    expect(app.getState().items).toHaveLength(0);
+    expect(app.getState().error).toBe("write failed");
+    expect(app.getState().retryable).toBe(true);
+  });
+
+  it("falls back to ephemeral storage when persistent init fails", async () => {
+    const adapter: StorageAdapter = {
+      id: "persistent",
+      label: "broken",
+      capabilities: { persistsAcrossReload: true, images: true, indexedQuery: true },
+      async init() {
+        throw new StorageUnavailableError("IndexedDB is not available in this browser.");
+      },
+      async create() {
+        throw new Error("unused");
+      },
+      async update() {
+        throw new Error("unused");
+      },
+      async delete() {},
+      async get() {
+        return null;
+      },
+      async query() {
+        return { items: [], total: 0, nextCursor: null };
+      },
+      async clear() {},
+      async bulkCreate() {},
+      async putImage() {
+        throw new Error("unused");
+      },
+      async getImage() {
+        return null;
+      },
+      async deleteImage() {},
+    };
+    const app = new TodoApp(adapter);
+    await app.start();
+    expect(app.getState().mode).toBe("ephemeral");
+    expect(app.getState().retryable).toBe(true);
+    expect(app.getState().error).toMatch(/ephemeral/i);
   });
 });

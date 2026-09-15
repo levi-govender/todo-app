@@ -51,10 +51,42 @@ export class StorageNotFoundError extends Error {
 }
 
 export class StorageUnavailableError extends Error {
-  readonly code = "STORAGE_UNAVAILABLE";
+  readonly code: string = "STORAGE_UNAVAILABLE";
 
   constructor(message: string) {
     super(message);
     this.name = "StorageUnavailableError";
   }
+}
+
+export class StorageQuotaError extends StorageUnavailableError {
+  override readonly code: string = "STORAGE_QUOTA";
+
+  constructor(message = "Storage is full. Delete todos or images and try again.") {
+    super(message);
+    this.name = "StorageQuotaError";
+  }
+}
+
+export function isQuotaError(error: unknown): boolean {
+  if (error instanceof StorageQuotaError) return true;
+  if (!error || typeof error !== "object") return false;
+  const name = "name" in error ? String(error.name) : "";
+  const message = "message" in error ? String(error.message) : "";
+  return (
+    name === "QuotaExceededError" ||
+    name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    message.toLowerCase().includes("quota")
+  );
+}
+
+export function isTransientUnavailable(error: unknown): boolean {
+  return error instanceof StorageUnavailableError && !(error instanceof StorageQuotaError);
+}
+
+export function mapStorageError(error: unknown): StorageUnavailableError {
+  if (error instanceof StorageUnavailableError) return error;
+  if (isQuotaError(error)) return new StorageQuotaError();
+  const message = error instanceof Error ? error.message : "Storage is unavailable.";
+  return new StorageUnavailableError(message);
 }
