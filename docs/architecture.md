@@ -55,3 +55,7 @@ The selected mode is remembered in `localStorage` (`todo-app.storageMode`) so a 
 ## Images
 
 `query()` returns `ImageRef` metadata only. `TodoApp.loadImage()` fetches bytes through the adapter when a row is visible (`IntersectionObserver` in `src/ui/bind.ts`). Blob URLs are cached up to `IMAGE_CACHE_LIMIT` and revoked when the cache evicts, the list changes, or the storage mode switches.
+
+## Performance
+
+Budgets and the repeatable 10k harness live in `src/perf/` and `docs/performance-budgets.md`. `make bench` (and `make test`) compare seed, first page, search, filter, sort, combined query, image get, page size, estimated DOM cost, and heap against those thresholds. `TodoApp` records `todo-query` Performance API measures around list queries.

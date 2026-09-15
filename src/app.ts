@@ -240,7 +240,7 @@ export class TodoApp {
     await this.run(async () => {
       const seq = this.querySeq;
       const { search, completed, sortBy, sortDir } = this.state.query;
-      const result = await this.adapter.query({
+      const result = await this.timedQuery({
         search,
         completed,
         sortBy,
@@ -267,7 +267,7 @@ export class TodoApp {
   private async reload(): Promise<void> {
     const seq = this.querySeq;
     const { search, completed, sortBy, sortDir } = this.state.query;
-    const result = await this.adapter.query({
+    const result = await this.timedQuery({
       search,
       completed,
       sortBy,
@@ -282,6 +282,16 @@ export class TodoApp {
       nextCursor: result.nextCursor,
       imageUrls: Object.fromEntries(this.imageCache),
     });
+  }
+
+  private async timedQuery(query: TodoQuery) {
+    performance.mark("todo-query:start");
+    try {
+      return await this.adapter.query(query);
+    } finally {
+      performance.mark("todo-query:end");
+      performance.measure("todo-query", "todo-query:start", "todo-query:end");
+    }
   }
 
   private pruneImageCache(items: Todo[]): void {
