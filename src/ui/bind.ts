@@ -38,6 +38,9 @@ export function bindUi(root: Document, app: TodoApp): void {
     ];
     app.setSort(sortBy, sortDir);
   });
+  mode.addEventListener("change", () => {
+    void app.setMode(mode.value as AppState["mode"]);
+  });
 
   list.addEventListener("change", (event) => {
     const target = event.target;
