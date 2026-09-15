@@ -43,7 +43,7 @@ function compareTodos(
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-function clampLimit(limit: number | undefined): number {
+export function clampLimit(limit: number | undefined): number {
   if (!limit || !Number.isFinite(limit)) return DEFAULT_LIMIT;
   return Math.min(MAX_LIMIT, Math.max(1, Math.floor(limit)));
 }

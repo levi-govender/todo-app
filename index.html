@@ -16,7 +16,7 @@
           <select id="storage-mode">
             <option value="ephemeral">Ephemeral (memory)</option>
             <option value="persistent">Persistent (IndexedDB)</option>
-            <option value="scalable" disabled>Scalable (10k+) — not implemented</option>
+            <option value="scalable">Scalable (10k+)</option>
           </select>
           <p id="storage-note"></p>
         </div>
@@ -89,6 +89,7 @@
           <p id="list-status" role="status"></p>
           <p id="empty-state">No todos yet. Add one above.</p>
           <ul id="todo-list"></ul>
+          <button type="button" id="load-more" hidden>Next page</button>
         </section>
       </main>
     </div>

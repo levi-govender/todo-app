@@ -5,7 +5,7 @@ export const STORAGE_MODE_KEY = "todo-app.storageMode";
 export function loadStorageMode(): StorageMode {
   try {
     const value = localStorage.getItem(STORAGE_MODE_KEY);
-    if (value === "ephemeral" || value === "persistent") return value;
+    if (value === "ephemeral" || value === "persistent" || value === "scalable") return value;
   } catch {
     // Private mode or missing storage should fall back to ephemeral.
   }
