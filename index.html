@@ -61,9 +61,19 @@
                   placeholder="Buy milk"
                 />
               </label>
-              <label class="composer-image" for="todo-image">Image
-                <input id="todo-image" name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-              </label>
+              <div class="composer-image">
+                <label for="todo-image">Image</label>
+                <label class="file-button" for="todo-image">
+                  <input
+                    id="todo-image"
+                    class="visually-hidden"
+                    name="image"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                  />
+                  Attach
+                </label>
+              </div>
               <button type="submit">Add todo</button>
             </div>
             <p class="hint">Optional JPEG, PNG, WebP, or GIF up to 2MB.</p>
