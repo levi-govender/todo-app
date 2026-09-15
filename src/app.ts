@@ -31,6 +31,7 @@ export type AppListener = (state: AppState) => void;
 export class TodoApp {
   private adapter: StorageAdapter;
   private listeners = new Set<AppListener>();
+  private querySeq = 0;
   private state: AppState = {
     items: [],
     total: 0,
@@ -137,6 +138,7 @@ export class TodoApp {
     this.state = {
       ...this.state,
       query: { ...this.state.query, search },
+      nextCursor: null,
     };
     void this.refresh();
   }
@@ -145,6 +147,7 @@ export class TodoApp {
     this.state = {
       ...this.state,
       query: { ...this.state.query, completed },
+      nextCursor: null,
     };
     void this.refresh();
   }
@@ -157,6 +160,7 @@ export class TodoApp {
         sortBy: sortBy ?? "createdAt",
         sortDir: sortDir ?? "desc",
       },
+      nextCursor: null,
     };
     void this.refresh();
   }
@@ -173,14 +177,17 @@ export class TodoApp {
     const cursor = this.state.nextCursor;
     if (!cursor) return;
     await this.run(async () => {
+      const seq = this.querySeq;
+      const { search, completed, sortBy, sortDir } = this.state.query;
       const result = await this.adapter.query({
-        search: this.state.query.search,
-        completed: this.state.query.completed,
-        sortBy: this.state.query.sortBy,
-        sortDir: this.state.query.sortDir,
+        search,
+        completed,
+        sortBy,
+        sortDir,
         cursor,
         limit: LIST_PAGE_SIZE,
       });
+      if (seq !== this.querySeq) return;
       this.patch({
         items: result.items,
         total: result.total,
@@ -194,24 +201,29 @@ export class TodoApp {
   }
 
   private async reload(): Promise<void> {
+    const seq = this.querySeq;
+    const { search, completed, sortBy, sortDir } = this.state.query;
     const result = await this.adapter.query({
-      search: this.state.query.search,
-      completed: this.state.query.completed,
-      sortBy: this.state.query.sortBy,
-      sortDir: this.state.query.sortDir,
+      search,
+      completed,
+      sortBy,
+      sortDir,
       limit: LIST_PAGE_SIZE,
     });
+    if (seq !== this.querySeq) return;
     this.patch({ items: result.items, total: result.total, nextCursor: result.nextCursor });
   }
 
   private async run(work: () => Promise<void>): Promise<void> {
+    const seq = ++this.querySeq;
     this.patch({ loading: true, error: null });
     try {
       await work();
     } catch (error) {
+      if (seq !== this.querySeq) return;
       this.patch({ error: toUserMessage(error) });
     } finally {
-      this.patch({ loading: false });
+      if (seq === this.querySeq) this.patch({ loading: false });
     }
   }
 
@@ -226,7 +238,7 @@ function modeNote(adapter: StorageAdapter): string {
     return "Ephemeral mode stores todos in memory only. Refreshing the page clears the list.";
   }
   if (adapter.id === "scalable") {
-    return "Scalable mode stores todos in a separate IndexedDB and pages the list through indexes so 10k+ records stay out of the DOM.";
+    return "Scalable mode stores todos in a separate IndexedDB, pages through indexes, and prefix-searches titles so 10k+ records stay out of the DOM.";
   }
   return "Persistent mode stores todos in IndexedDB. They survive refresh and browser restart.";
 }

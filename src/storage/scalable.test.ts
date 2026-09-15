@@ -50,14 +50,37 @@ describe("ScalableStorageAdapter", () => {
     expect(completed.total).toBe(1);
   });
 
-  it("searches without materializing every match in the page", async () => {
+  it("uses a title prefix index instead of a contains scan", async () => {
     const storage = new ScalableStorageAdapter(`todo-scale-${crypto.randomUUID()}`);
     await storage.init();
-    await storage.bulkCreate(generateTodoInputs({ seed: "scale-search", count: 120 }));
-    const result = await storage.query({ search: "milk", limit: 8 });
-    expect(result.items.every((todo) => todo.title.toLowerCase().includes("milk"))).toBe(true);
-    expect(result.items.length).toBeLessThanOrEqual(8);
-    expect(result.total).toBeGreaterThanOrEqual(result.items.length);
+    await storage.bulkCreate([
+      {
+        title: "Buy milk",
+        id: "11111111-1111-4111-8111-111111111111",
+        createdAt: "2026-09-15T08:00:00.000Z",
+        updatedAt: "2026-09-15T08:00:00.000Z",
+      },
+      {
+        title: "Call about milk",
+        id: "22222222-2222-4222-8222-222222222222",
+        createdAt: "2026-09-15T09:00:00.000Z",
+        updatedAt: "2026-09-15T09:00:00.000Z",
+      },
+    ]);
+    const result = await storage.query({ search: "buy", limit: 8 });
+    expect(result.items.map((todo) => todo.title)).toEqual(["Buy milk"]);
+    expect(result.total).toBe(1);
+  });
+
+  it("pages prefix matches without returning the full prefix set", async () => {
+    const storage = new ScalableStorageAdapter(`todo-scale-${crypto.randomUUID()}`);
+    await storage.init();
+    await storage.bulkCreate(generateTodoInputs({ seed: "ten-k", count: 10_000 }));
+    const result = await storage.query({ search: "buy", limit: 20 });
+    expect(result.items).toHaveLength(20);
+    expect(result.items.every((todo) => todo.title.toLowerCase().startsWith("buy"))).toBe(true);
+    expect(result.total).toBeGreaterThan(20);
+    expect(result.nextCursor).toBeTruthy();
   });
 
   it("stores 10k records and still returns a bounded first page", async () => {

@@ -18,7 +18,7 @@ import {
 import { clampLimit } from "./query.ts";
 
 export const SCALABLE_DB_NAME = "todo-app-scalable";
-export const SCALABLE_DB_VERSION = 1;
+export const SCALABLE_DB_VERSION = 2;
 export const SCALABLE_STORE = "todos";
 
 type Keyset = { value: string; id: string };
@@ -43,7 +43,7 @@ export class ScalableStorageAdapter implements StorageAdapter {
 
   async create(input: CreateTodoInput): Promise<Todo> {
     const todo = createTodo(input);
-    await this.put(todo);
+    await this.put(toStored(todo));
     return todo;
   }
 
@@ -51,7 +51,7 @@ export class ScalableStorageAdapter implements StorageAdapter {
     const current = await this.get(id);
     if (!current) throw new StorageNotFoundError(id);
     const next = applyTodoUpdate(current, patch);
-    await this.put(next);
+    await this.put(toStored(next));
     return next;
   }
 
@@ -73,20 +73,21 @@ export class ScalableStorageAdapter implements StorageAdapter {
   async query(query: TodoQuery = {}): Promise<TodoQueryResult> {
     const db = this.requireDb();
     const search = query.search?.trim().toLowerCase() ?? "";
-    const sortBy = query.sortBy ?? "createdAt";
-    const sortDir = query.sortDir ?? "desc";
+    const sortBy = search ? "title" : (query.sortBy ?? "createdAt");
+    const sortDir = search ? "asc" : (query.sortDir ?? "desc");
     const limit = clampLimit(query.limit);
     const keyset = decodeKeyset(query.cursor);
     const store = this.store(db, "readonly");
-    const index = store.index(sortBy);
+    const index = store.index(search ? "titleSearch" : sortBy);
     const direction: IDBCursorDirection = sortDir === "asc" ? "next" : "prev";
     const completed = query.completed;
+    const range = search ? titlePrefixRange(search) : null;
 
     const items: Todo[] = [];
     let matchCount = 0;
     let hasMore = false;
 
-    await walkCursor(index, null, direction, (raw) => {
+    await walkCursor(index, range, direction, (raw) => {
       let todo: Todo;
       try {
         todo = readTodo(raw);
@@ -95,7 +96,7 @@ export class ScalableStorageAdapter implements StorageAdapter {
       }
       if (completed === true && !todo.completed) return;
       if (completed === false && todo.completed) return;
-      if (search && !todo.title.toLowerCase().includes(search)) return;
+      if (search && !todo.title.toLowerCase().startsWith(search)) return false;
       matchCount += 1;
       if (!isAfterKeyset(todo, sortBy, sortDir, keyset)) return;
       if (items.length < limit) {
@@ -104,12 +105,15 @@ export class ScalableStorageAdapter implements StorageAdapter {
       }
       hasMore = true;
       if (!search && completed !== true && completed !== false) return false;
+      if (search && completed !== true && completed !== false) return false;
     });
 
     const total =
-      search || completed === true || completed === false
-        ? matchCount
-        : await requestToPromise(index.count());
+      search && completed !== true && completed !== false && range
+        ? await requestToPromise(index.count(range))
+        : search || completed === true || completed === false
+          ? matchCount
+          : await requestToPromise(index.count());
     const last = items[items.length - 1];
 
     return {
@@ -128,14 +132,14 @@ export class ScalableStorageAdapter implements StorageAdapter {
     const db = this.requireDb();
     const store = this.store(db, "readwrite");
     for (const input of inputs) {
-      store.put(createTodo(input));
+      store.put(toStored(createTodo(input)));
     }
     await transactionDone(store.transaction);
   }
 
-  private put(todo: Todo): Promise<IDBValidKey> {
+  private put(record: Todo & { titleSearch: string }): Promise<IDBValidKey> {
     const db = this.requireDb();
-    return requestToPromise(this.store(db, "readwrite").put(todo));
+    return requestToPromise(this.store(db, "readwrite").put(record));
   }
 
   private store(db: IDBDatabase, mode: IDBTransactionMode): IDBObjectStore {
@@ -148,6 +152,14 @@ export class ScalableStorageAdapter implements StorageAdapter {
     }
     return this.db;
   }
+}
+
+function toStored(todo: Todo): Todo & { titleSearch: string } {
+  return { ...todo, titleSearch: todo.title.toLowerCase() };
+}
+
+export function titlePrefixRange(prefix: string): IDBKeyRange {
+  return IDBKeyRange.bound(prefix, `${prefix}\uffff`);
 }
 
 function isAfterKeyset(
@@ -243,6 +255,7 @@ function openDatabase(name: string): Promise<IDBDatabase> {
       ensureIndex(store, "createdAt", "createdAt");
       ensureIndex(store, "updatedAt", "updatedAt");
       ensureIndex(store, "title", "title");
+      ensureIndex(store, "titleSearch", "titleSearch");
       ensureIndex(store, "completed", "completed");
     };
     request.onsuccess = () => resolve(request.result);

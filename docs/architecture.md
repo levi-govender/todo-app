@@ -47,4 +47,4 @@ The selected mode is remembered in `localStorage` (`todo-app.storageMode`) so a 
 
 ## Scalable mode
 
-`ScalableStorageAdapter` in `src/storage/scalable.ts` uses a separate IndexedDB database (`todo-app-scalable`) so it never shares rows with persistent mode. Queries walk `createdAt` / `updatedAt` / `title` indexes with keyset cursors. Each page keeps at most the requested limit in memory; the UI shows one page at a time via **Next page**. Completion filters and substring search skip non-matching rows during the cursor walk instead of `getAll()`.
+`ScalableStorageAdapter` in `src/storage/scalable.ts` uses a separate IndexedDB database (`todo-app-scalable`, schema version `2`) so it never shares rows with persistent mode. List queries walk `createdAt` / `updatedAt` / `title` indexes with keyset cursors. Search uses a lowercase `titleSearch` prefix index (`IDBKeyRange`) so a keystroke does not scan all 10k titles. The search box is debounced (200ms). `TodoApp` ignores stale query results. Each page stays bounded; **Next page** advances the cursor and a new search/filter/sort resets pagination.
