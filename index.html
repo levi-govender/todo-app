@@ -8,9 +8,12 @@
   <body>
     <a class="skip-link" href="#todo-list">Skip to todos</a>
     <div class="layout">
-      <header>
-        <h1>Todo</h1>
-        <p class="lede">Create, complete, edit, and find todos. Storage is swapped behind one adapter contract.</p>
+      <header class="app-header">
+        <div class="brand">
+          <p class="eyebrow">Personal list</p>
+          <h1>Todo</h1>
+          <p class="lede">Create, complete, edit, and find todos. Storage is swapped behind one adapter contract.</p>
+        </div>
         <div class="panel">
           <label for="storage-mode">Storage mode</label>
           <select id="storage-mode" aria-describedby="storage-note">
@@ -34,36 +37,52 @@
                 <option value="100000">100,000</option>
               </select>
             </label>
-            <button type="submit">Seed current storage</button>
-            <button type="button" data-action="clear-all">Clear current storage</button>
+            <div class="button-row">
+              <button type="submit">Seed current storage</button>
+              <button type="button" class="danger" data-action="clear-all">Clear current storage</button>
+            </div>
           </form>
         </section>
       </header>
 
       <main>
-        <section aria-labelledby="add-heading">
+        <section class="card-block" aria-labelledby="add-heading">
           <h2 id="add-heading">Add a todo</h2>
           <form id="todo-form">
-            <label for="todo-title">Title</label>
-            <input
-              id="todo-title"
-              name="title"
-              type="text"
-              required
-              maxlength="200"
-              autocomplete="off"
-              placeholder="Buy milk"
-            />
-            <label for="todo-image">Image (optional, JPEG/PNG/WebP/GIF, max 2MB)
-              <input id="todo-image" name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-            </label>
-            <button type="submit">Add todo</button>
+            <div class="composer">
+              <label class="composer-title" for="todo-title">Title
+                <input
+                  id="todo-title"
+                  name="title"
+                  type="text"
+                  required
+                  maxlength="200"
+                  autocomplete="off"
+                  placeholder="Buy milk"
+                />
+              </label>
+              <div class="composer-image">
+                <label for="todo-image">Image</label>
+                <label class="file-button" for="todo-image">
+                  <input
+                    id="todo-image"
+                    class="visually-hidden"
+                    name="image"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                  />
+                  Attach
+                </label>
+              </div>
+              <button type="submit">Add todo</button>
+            </div>
+            <p class="hint">Optional JPEG, PNG, WebP, or GIF up to 2MB.</p>
             <p id="form-error" role="alert" hidden></p>
             <button type="button" id="storage-retry" hidden>Retry storage</button>
           </form>
         </section>
 
-        <section aria-labelledby="toolbar-heading">
+        <section class="card-block" aria-labelledby="toolbar-heading">
           <h2 id="toolbar-heading" class="visually-hidden">Search, filter, and sort</h2>
           <div class="toolbar">
             <label for="todo-search">Search
@@ -88,9 +107,11 @@
           </div>
         </section>
 
-        <section aria-labelledby="list-heading">
-          <h2 id="list-heading">Todos</h2>
-          <p id="list-status" role="status"></p>
+        <section class="card-block list-block" aria-labelledby="list-heading">
+          <div class="list-head">
+            <h2 id="list-heading">Todos</h2>
+            <p id="list-status" role="status"></p>
+          </div>
           <p id="empty-state">No todos yet. Add one above.</p>
           <ul id="todo-list" aria-labelledby="list-heading"></ul>
           <button type="button" id="load-more" hidden>Next page</button>
