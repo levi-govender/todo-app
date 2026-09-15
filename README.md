@@ -12,7 +12,7 @@ make test
 make dev
 ```
 
-`make help` lists the other targets (`build`, `preview`). You can still use the npm scripts directly.
+`make help` lists the other targets (`build`, `preview`, `bench`). You can still use the npm scripts directly.
 
 Open the printed local URL. Add, complete, edit, delete, search, filter, and sort todos.
 
@@ -29,10 +29,12 @@ Image bytes live in a separate `images` store (or in-memory map). Todo rows keep
 - `src/domain` — canonical Todo model and validation
 - `src/seed` — deterministic benchmark datasets
 - `src/storage` — adapter contract, registry, memory, IndexedDB, and scalable adapters
+- `src/perf` — documented budgets and the 10k benchmark harness
 - `src/ui` — DOM binding; no persistence imports
 - `src/app.ts` — application state
 - `docs/architecture.md` — adapter boundaries and trade-offs
+- `docs/performance-budgets.md` — latency, memory, and render budgets
 
 ## Next
 
-1. Performance budgets and a benchmark harness
+1. Adapter contract tests, storage failure/recovery, or accessibility (remaining P1s)

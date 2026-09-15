@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench": "vitest run src/perf/harness.test.ts"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.5",
