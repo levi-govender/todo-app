@@ -12,7 +12,7 @@ make test
 make dev
 ```
 
-`make help` lists the other targets (`build`, `preview`, `bench`). You can still use the npm scripts directly.
+`make help` lists the other targets (`build`, `preview`, `bench`, `a11y`). You can still use the npm scripts directly.
 
 Open the printed local URL. Add, complete, edit, delete, search, filter, and sort todos.
 
@@ -23,6 +23,8 @@ Open the printed local URL. Add, complete, edit, delete, search, filter, and sor
 In `make dev`, a **Dev seed data** panel can load 10k, 50k, or 100k deterministic records into the current storage mode (`seed=todo-app` by default). Production builds hide those controls.
 
 Image bytes live in a separate `images` store (or in-memory map). Todo rows keep only an `ImageRef`. JPEG, PNG, WebP, and GIF up to 2MB are accepted. List queries never load bytes; thumbs fetch on visibility through a bounded blob-URL cache.
+
+Keyboard-only add, edit, complete, and delete is supported. Automated accessibility checks live in `src/ui/a11y.test.ts` (`make a11y` or `make test`). The toolbar stacks below 720px; todo actions wrap below 719px. Focus rings use `:focus-visible`.
 
 ## Layout
 
@@ -37,4 +39,4 @@ Image bytes live in a separate `images` store (or in-memory map). Todo rows keep
 
 ## Next
 
-1. Accessibility and responsive behaviour
+1. Document architecture (P2 polish) then the final acceptance demonstration
