@@ -4,7 +4,7 @@ Framework-free browser todo list with a storage adapter boundary. The UI talks o
 
 Board: [Todo-app Kanban](https://app.notion.com/p/c963dc548b9e491f808b34ff41e5139c?v=3dc8f3776f4f81bfac2d000cd8832de9)
 
-Architecture, schemas, image lifecycle, and trade-offs: [docs/architecture.md](docs/architecture.md). Performance budgets: [docs/performance-budgets.md](docs/performance-budgets.md).
+Architecture, schemas, image lifecycle, and trade-offs: [docs/architecture.md](docs/architecture.md). Performance budgets: [docs/performance-budgets.md](docs/performance-budgets.md). Repeatable acceptance demo: [docs/acceptance-demo.md](docs/acceptance-demo.md).
 
 ## Setup
 
@@ -14,7 +14,7 @@ make test
 make dev
 ```
 
-`make help` lists `build`, `preview`, `bench`, and `a11y`. npm scripts match those names.
+`make help` lists `build`, `preview`, `bench`, `a11y`, and `demo`. npm scripts match those names.
 
 Open the printed local URL. Add, complete, edit, delete, search, filter, and sort todos. Keyboard-only CRUD works; skip link jumps to the list.
 
@@ -49,9 +49,10 @@ Scalable mode pages 50 rows, debounces search (200ms), and drops stale queries. 
 ## Tests
 
 ```bash
-make test    # unit, contract, harness, a11y
+make test    # unit, contract, harness, a11y, demo
 make bench   # 10k budgets only
 make a11y    # accessibility + breakpoints
+make demo    # ephemeral / persistent / scalable / image acceptance checks
 ```
 
 The toolbar stacks below 720px; todo actions wrap below 719px. Focus rings use `:focus-visible`.
@@ -66,7 +67,4 @@ The toolbar stacks below 720px; todo actions wrap below 719px. Focus rings use `
 - `src/app.ts` — application state
 - `docs/architecture.md` — adapter boundaries, schemas, trade-offs
 - `docs/performance-budgets.md` — latency, memory, and render budgets
-
-## Next
-
-1. Final acceptance demonstration
+- `docs/acceptance-demo.md` — clean-environment walkthrough

@@ -101,6 +101,7 @@ If persistent or scalable `init()` fails at startup, the app falls back to ephem
 
 | Command | What it covers |
 | --- | --- |
-| `make test` | Domain, adapters, contract suite, app sequencing, perf harness, a11y |
+| `make test` | Domain, adapters, contract suite, app sequencing, perf harness, a11y, acceptance demo |
 | `make bench` | 10k scalable budgets only |
 | `make a11y` | Accessibility and breakpoint checks only |
+| `make demo` | Ephemeral wipe, persistent reopen, 10k scalable query, image bytes |
