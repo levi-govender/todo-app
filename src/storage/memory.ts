@@ -1,7 +1,9 @@
+import { toImageRef, type ImageBytes } from "../domain/image.ts";
 import {
   applyTodoUpdate,
   createTodo,
   type CreateTodoInput,
+  type ImageRef,
   type Todo,
   type UpdateTodoInput,
 } from "../domain/todo.ts";
@@ -19,14 +21,16 @@ export class MemoryStorageAdapter implements StorageAdapter {
   readonly label = "Ephemeral (memory)";
   readonly capabilities: StorageCapabilities = {
     persistsAcrossReload: false,
-    images: false,
+    images: true,
     indexedQuery: false,
   };
 
   private readonly records = new Map<string, Todo>();
+  private readonly images = new Map<string, ImageBytes>();
 
   async init(): Promise<void> {
     this.records.clear();
+    this.images.clear();
   }
 
   async create(input: CreateTodoInput): Promise<Todo> {
@@ -44,7 +48,10 @@ export class MemoryStorageAdapter implements StorageAdapter {
   }
 
   async delete(id: string): Promise<void> {
-    if (!this.records.delete(id)) throw new StorageNotFoundError(id);
+    const current = this.records.get(id);
+    if (!current) throw new StorageNotFoundError(id);
+    if (current.image) this.images.delete(current.image.id);
+    this.records.delete(id);
   }
 
   async get(id: string): Promise<Todo | null> {
@@ -57,6 +64,7 @@ export class MemoryStorageAdapter implements StorageAdapter {
 
   async clear(): Promise<void> {
     this.records.clear();
+    this.images.clear();
   }
 
   async bulkCreate(inputs: CreateTodoInput[]): Promise<void> {
@@ -64,5 +72,18 @@ export class MemoryStorageAdapter implements StorageAdapter {
       const todo = createTodo(input);
       this.records.set(todo.id, todo);
     }
+  }
+
+  async putImage(image: ImageBytes): Promise<ImageRef> {
+    this.images.set(image.id, image);
+    return toImageRef(image);
+  }
+
+  async getImage(id: string): Promise<ImageBytes | null> {
+    return this.images.get(id) ?? null;
+  }
+
+  async deleteImage(id: string): Promise<void> {
+    this.images.delete(id);
   }
 }

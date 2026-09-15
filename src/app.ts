@@ -1,3 +1,4 @@
+import { ImageValidationError, readImageFile } from "./domain/image.ts";
 import { TodoValidationError, type CreateTodoInput, type Todo } from "./domain/todo.ts";
 import { DEFAULT_SEED, DEFAULT_SEED_COUNT, generateTodoInputs } from "./seed/generate.ts";
 import {
@@ -22,6 +23,7 @@ export type AppState = {
   loading: boolean;
   error: string | null;
   editingId: string | null;
+  imageUrls: Record<string, string>;
   mode: StorageMode;
   modeNote: string;
 };
@@ -45,6 +47,7 @@ export class TodoApp {
     loading: false,
     error: null,
     editingId: null,
+    imageUrls: {},
     mode: "ephemeral",
     modeNote: "",
   };
@@ -86,10 +89,37 @@ export class TodoApp {
     });
   }
 
-  async create(title: string): Promise<void> {
+  async create(title: string, file?: File | null): Promise<void> {
     await this.run(async () => {
       const input: CreateTodoInput = { title };
+      if (file && file.size > 0) {
+        const bytes = await readImageFile(file);
+        input.image = await this.adapter.putImage(bytes);
+      }
       await this.adapter.create(input);
+      await this.reload();
+    });
+  }
+
+  async attachImage(id: string, file: File): Promise<void> {
+    const current = this.state.items.find((item) => item.id === id);
+    if (!current) return;
+    await this.run(async () => {
+      const bytes = await readImageFile(file);
+      const image = await this.adapter.putImage(bytes);
+      await this.adapter.update(id, { image });
+      if (current.image) await this.adapter.deleteImage(current.image.id);
+      await this.reload();
+    });
+  }
+
+  async removeImage(id: string): Promise<void> {
+    const current = this.state.items.find((item) => item.id === id);
+    const image = current?.image;
+    if (!image) return;
+    await this.run(async () => {
+      await this.adapter.update(id, { image: null });
+      await this.adapter.deleteImage(image.id);
       await this.reload();
     });
   }
@@ -188,10 +218,17 @@ export class TodoApp {
         limit: LIST_PAGE_SIZE,
       });
       if (seq !== this.querySeq) return;
+      const imageUrls = await this.urlsFor(result.items);
+      if (seq !== this.querySeq) {
+        revokeUrls(imageUrls);
+        return;
+      }
+      this.replaceImageUrls();
       this.patch({
         items: result.items,
         total: result.total,
         nextCursor: result.nextCursor,
+        imageUrls,
       });
     });
   }
@@ -211,7 +248,29 @@ export class TodoApp {
       limit: LIST_PAGE_SIZE,
     });
     if (seq !== this.querySeq) return;
-    this.patch({ items: result.items, total: result.total, nextCursor: result.nextCursor });
+    const imageUrls = await this.urlsFor(result.items);
+    if (seq !== this.querySeq) {
+      revokeUrls(imageUrls);
+      return;
+    }
+    this.replaceImageUrls();
+    this.patch({ items: result.items, total: result.total, nextCursor: result.nextCursor, imageUrls });
+  }
+
+  private async urlsFor(items: Todo[]): Promise<Record<string, string>> {
+    const urls: Record<string, string> = {};
+    if (typeof URL === "undefined" || typeof Blob === "undefined") return urls;
+    for (const item of items) {
+      if (!item.image) continue;
+      const stored = await this.adapter.getImage(item.image.id);
+      if (!stored) continue;
+      urls[item.id] = URL.createObjectURL(new Blob([stored.bytes], { type: stored.mimeType }));
+    }
+    return urls;
+  }
+
+  private replaceImageUrls(): void {
+    revokeUrls(this.state.imageUrls);
   }
 
   private async run(work: () => Promise<void>): Promise<void> {
@@ -243,9 +302,15 @@ function modeNote(adapter: StorageAdapter): string {
   return "Persistent mode stores todos in IndexedDB. They survive refresh and browser restart.";
 }
 
+function revokeUrls(urls: Record<string, string>): void {
+  if (typeof URL === "undefined") return;
+  for (const url of Object.values(urls)) URL.revokeObjectURL(url);
+}
+
 function toUserMessage(error: unknown): string {
   if (
     error instanceof TodoValidationError ||
+    error instanceof ImageValidationError ||
     error instanceof StorageNotFoundError
   ) {
     return error.message;

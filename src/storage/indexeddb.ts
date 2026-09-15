@@ -1,8 +1,10 @@
+import { toImageRef, type ImageBytes } from "../domain/image.ts";
 import {
   applyTodoUpdate,
   createTodo,
   migrateTodo,
   type CreateTodoInput,
+  type ImageRef,
   type Todo,
   TodoValidationError,
   type UpdateTodoInput,
@@ -18,15 +20,16 @@ import {
 import { applyTodoQuery } from "./query.ts";
 
 export const TODO_DB_NAME = "todo-app";
-export const TODO_DB_VERSION = 1;
+export const TODO_DB_VERSION = 2;
 export const TODO_STORE = "todos";
+export const IMAGE_STORE = "images";
 
 export class IndexedDbStorageAdapter implements StorageAdapter {
   readonly id = "persistent" as const;
   readonly label = "Persistent (IndexedDB)";
   readonly capabilities: StorageCapabilities = {
     persistsAcrossReload: true,
-    images: false,
+    images: true,
     indexedQuery: true,
   };
 
@@ -55,10 +58,13 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
 
   async delete(id: string): Promise<void> {
     const db = this.requireDb();
-    const store = this.store(db, "readwrite");
-    const existing = await requestToPromise(store.get(id));
+    const tx = db.transaction([TODO_STORE, IMAGE_STORE], "readwrite");
+    const existing = await requestToPromise(tx.objectStore(TODO_STORE).get(id));
     if (existing === undefined) throw new StorageNotFoundError(id);
-    await requestToPromise(store.delete(id));
+    const todo = readTodo(existing);
+    if (todo.image) tx.objectStore(IMAGE_STORE).delete(todo.image.id);
+    tx.objectStore(TODO_STORE).delete(id);
+    await transactionDone(tx);
   }
 
   async get(id: string): Promise<Todo | null> {
@@ -84,7 +90,10 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
 
   async clear(): Promise<void> {
     const db = this.requireDb();
-    await requestToPromise(this.store(db, "readwrite").clear());
+    const tx = db.transaction([TODO_STORE, IMAGE_STORE], "readwrite");
+    tx.objectStore(TODO_STORE).clear();
+    tx.objectStore(IMAGE_STORE).clear();
+    await transactionDone(tx);
   }
 
   async bulkCreate(inputs: CreateTodoInput[]): Promise<void> {
@@ -96,6 +105,23 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
     await transactionDone(store.transaction);
   }
 
+  async putImage(image: ImageBytes): Promise<ImageRef> {
+    const db = this.requireDb();
+    await requestToPromise(this.imageStore(db, "readwrite").put(image));
+    return toImageRef(image);
+  }
+
+  async getImage(id: string): Promise<ImageBytes | null> {
+    const db = this.requireDb();
+    const raw = await requestToPromise(this.imageStore(db, "readonly").get(id));
+    return raw ? (raw as ImageBytes) : null;
+  }
+
+  async deleteImage(id: string): Promise<void> {
+    const db = this.requireDb();
+    await requestToPromise(this.imageStore(db, "readwrite").delete(id));
+  }
+
   private put(todo: Todo): Promise<IDBValidKey> {
     const db = this.requireDb();
     return requestToPromise(this.store(db, "readwrite").put(todo));
@@ -103,6 +129,10 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
 
   private store(db: IDBDatabase, mode: IDBTransactionMode): IDBObjectStore {
     return db.transaction(TODO_STORE, mode).objectStore(TODO_STORE);
+  }
+
+  private imageStore(db: IDBDatabase, mode: IDBTransactionMode): IDBObjectStore {
+    return db.transaction(IMAGE_STORE, mode).objectStore(IMAGE_STORE);
   }
 
   private requireDb(): IDBDatabase {
@@ -145,6 +175,9 @@ function openDatabase(name: string): Promise<IDBDatabase> {
       const store = db.objectStoreNames.contains(TODO_STORE)
         ? tx.objectStore(TODO_STORE)
         : db.createObjectStore(TODO_STORE, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(IMAGE_STORE)) {
+        db.createObjectStore(IMAGE_STORE, { keyPath: "id" });
+      }
       ensureIndex(store, "completed", "completed");
       ensureIndex(store, "createdAt", "createdAt");
       ensureIndex(store, "updatedAt", "updatedAt");

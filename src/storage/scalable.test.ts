@@ -160,4 +160,20 @@ describe("ScalableStorageAdapter", () => {
       storage.update("11111111-1111-4111-8111-111111111111", { title: "Nope" }),
     ).rejects.toBeInstanceOf(StorageNotFoundError);
   });
+
+  it("keeps image bytes off todo records", async () => {
+    const storage = new ScalableStorageAdapter(`todo-scale-${crypto.randomUUID()}`);
+    await storage.init();
+    const image = await storage.putImage({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      mimeType: "image/webp",
+      sizeBytes: 4,
+      bytes: new Uint8Array([1, 2, 3, 4]).buffer,
+    });
+    const todo = await storage.create({ title: "Shot", image });
+    expect(todo.image?.sizeBytes).toBe(4);
+    expect((await storage.getImage(image.id))?.bytes.byteLength).toBe(4);
+    await storage.clear();
+    expect(await storage.getImage(image.id)).toBeNull();
+  });
 });

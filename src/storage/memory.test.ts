@@ -95,4 +95,21 @@ describe("MemoryStorageAdapter", () => {
     ]);
     expect((await storage.query()).total).toBe(2);
   });
+
+  it("stores image bytes off the todo record", async () => {
+    const storage = new MemoryStorageAdapter();
+    await storage.init();
+    const bytes = new Uint8Array([1, 2, 3, 4]).buffer;
+    const image = await storage.putImage({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      mimeType: "image/png",
+      sizeBytes: 4,
+      bytes,
+    });
+    const todo = await storage.create({ title: "With image", image });
+    expect(todo.image?.id).toBe(image.id);
+    expect((await storage.getImage(image.id))?.sizeBytes).toBe(4);
+    await storage.delete(todo.id);
+    expect(await storage.getImage(image.id)).toBeNull();
+  });
 });

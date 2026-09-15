@@ -1,8 +1,10 @@
+import { toImageRef, type ImageBytes } from "../domain/image.ts";
 import {
   applyTodoUpdate,
   createTodo,
   migrateTodo,
   type CreateTodoInput,
+  type ImageRef,
   type Todo,
   TodoValidationError,
   type UpdateTodoInput,
@@ -18,8 +20,9 @@ import {
 import { clampLimit, compareTodos } from "./query.ts";
 
 export const SCALABLE_DB_NAME = "todo-app-scalable";
-export const SCALABLE_DB_VERSION = 3;
+export const SCALABLE_DB_VERSION = 4;
 export const SCALABLE_STORE = "todos";
+export const SCALABLE_IMAGE_STORE = "images";
 
 type Keyset = { value: string; id: string };
 
@@ -28,7 +31,7 @@ export class ScalableStorageAdapter implements StorageAdapter {
   readonly label = "Scalable (IndexedDB indexes)";
   readonly capabilities: StorageCapabilities = {
     persistsAcrossReload: true,
-    images: false,
+    images: true,
     indexedQuery: true,
   };
 
@@ -57,10 +60,13 @@ export class ScalableStorageAdapter implements StorageAdapter {
 
   async delete(id: string): Promise<void> {
     const db = this.requireDb();
-    const store = this.store(db, "readwrite");
-    const existing = await requestToPromise(store.get(id));
+    const tx = db.transaction([SCALABLE_STORE, SCALABLE_IMAGE_STORE], "readwrite");
+    const existing = await requestToPromise(tx.objectStore(SCALABLE_STORE).get(id));
     if (existing === undefined) throw new StorageNotFoundError(id);
-    await requestToPromise(store.delete(id));
+    const todo = readTodo(existing);
+    if (todo.image) tx.objectStore(SCALABLE_IMAGE_STORE).delete(todo.image.id);
+    tx.objectStore(SCALABLE_STORE).delete(id);
+    await transactionDone(tx);
   }
 
   async get(id: string): Promise<Todo | null> {
@@ -179,7 +185,10 @@ export class ScalableStorageAdapter implements StorageAdapter {
 
   async clear(): Promise<void> {
     const db = this.requireDb();
-    await requestToPromise(this.store(db, "readwrite").clear());
+    const tx = db.transaction([SCALABLE_STORE, SCALABLE_IMAGE_STORE], "readwrite");
+    tx.objectStore(SCALABLE_STORE).clear();
+    tx.objectStore(SCALABLE_IMAGE_STORE).clear();
+    await transactionDone(tx);
   }
 
   async bulkCreate(inputs: CreateTodoInput[]): Promise<void> {
@@ -191,6 +200,23 @@ export class ScalableStorageAdapter implements StorageAdapter {
     await transactionDone(store.transaction);
   }
 
+  async putImage(image: ImageBytes): Promise<ImageRef> {
+    const db = this.requireDb();
+    await requestToPromise(this.imageStore(db, "readwrite").put(image));
+    return toImageRef(image);
+  }
+
+  async getImage(id: string): Promise<ImageBytes | null> {
+    const db = this.requireDb();
+    const raw = await requestToPromise(this.imageStore(db, "readonly").get(id));
+    return raw ? (raw as ImageBytes) : null;
+  }
+
+  async deleteImage(id: string): Promise<void> {
+    const db = this.requireDb();
+    await requestToPromise(this.imageStore(db, "readwrite").delete(id));
+  }
+
   private put(record: Todo & { titleSearch: string }): Promise<IDBValidKey> {
     const db = this.requireDb();
     return requestToPromise(this.store(db, "readwrite").put(record));
@@ -198,6 +224,10 @@ export class ScalableStorageAdapter implements StorageAdapter {
 
   private store(db: IDBDatabase, mode: IDBTransactionMode): IDBObjectStore {
     return db.transaction(SCALABLE_STORE, mode).objectStore(SCALABLE_STORE);
+  }
+
+  private imageStore(db: IDBDatabase, mode: IDBTransactionMode): IDBObjectStore {
+    return db.transaction(SCALABLE_IMAGE_STORE, mode).objectStore(SCALABLE_IMAGE_STORE);
   }
 
   private requireDb(): IDBDatabase {
@@ -314,6 +344,9 @@ function openDatabase(name: string): Promise<IDBDatabase> {
       ensureIndex(store, "createdAt_id", ["createdAt", "id"]);
       ensureIndex(store, "updatedAt_id", ["updatedAt", "id"]);
       ensureIndex(store, "title_id", ["title", "id"]);
+      if (!db.objectStoreNames.contains(SCALABLE_IMAGE_STORE)) {
+        db.createObjectStore(SCALABLE_IMAGE_STORE, { keyPath: "id" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(toUnavailable(request.error));

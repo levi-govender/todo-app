@@ -3,6 +3,7 @@ import type { AppState, TodoApp } from "../app.ts";
 export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: boolean } = {}): void {
   const form = must(root, "#todo-form");
   const titleInput = must<HTMLInputElement>(root, "#todo-title");
+  const imageInput = must<HTMLInputElement>(root, "#todo-image");
   const formError = must(root, "#form-error");
   const list = must(root, "#todo-list");
   const status = must(root, "#list-status");
@@ -26,9 +27,11 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const title = titleInput.value;
-    void app.create(title).then(() => {
+    const file = imageInput.files?.[0] ?? null;
+    void app.create(title, file).then(() => {
       if (!app.getState().error) {
         titleInput.value = "";
+        imageInput.value = "";
         titleInput.focus();
       }
     });
@@ -75,10 +78,16 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
 
   list.addEventListener("change", (event) => {
     const target = event.target;
-    if (!(target instanceof HTMLInputElement) || target.type !== "checkbox") return;
+    if (!(target instanceof HTMLInputElement)) return;
     const item = target.closest("li[data-id]");
     if (!(item instanceof HTMLElement) || !item.dataset.id) return;
-    void app.toggle(item.dataset.id);
+    if (target.type === "checkbox") {
+      void app.toggle(item.dataset.id);
+      return;
+    }
+    if (target.type === "file" && target.files?.[0]) {
+      void app.attachImage(item.dataset.id, target.files[0]);
+    }
   });
 
   list.addEventListener("click", (event) => {
@@ -90,6 +99,7 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
     if (target.matches("[data-action=edit]")) app.beginEdit(id);
     if (target.matches("[data-action=cancel]")) app.cancelEdit();
     if (target.matches("[data-action=delete]")) void app.remove(id);
+    if (target.matches("[data-action=remove-image]")) void app.removeImage(id);
   });
 
   list.addEventListener("submit", (event) => {
@@ -117,11 +127,19 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
         : `Showing ${state.items.length} of ${state.total} todo${state.total === 1 ? "" : "s"}`;
     empty.hidden = state.items.length > 0 || state.loading;
     loadMore.hidden = !state.nextCursor || state.loading;
-    list.replaceChildren(...state.items.map((todo) => renderItem(todo, state.editingId === todo.id)));
+    list.replaceChildren(
+      ...state.items.map((todo) =>
+        renderItem(todo, state.editingId === todo.id, state.imageUrls[todo.id]),
+      ),
+    );
   }
 }
 
-function renderItem(todo: { id: string; title: string; completed: boolean }, editing: boolean): HTMLLIElement {
+function renderItem(
+  todo: { id: string; title: string; completed: boolean; image: { id: string } | null },
+  editing: boolean,
+  imageUrl: string | undefined,
+): HTMLLIElement {
   const li = document.createElement("li");
   li.dataset.id = todo.id;
   li.className = todo.completed ? "todo-item is-complete" : "todo-item";
@@ -148,10 +166,20 @@ function renderItem(todo: { id: string; title: string; completed: boolean }, edi
       <input type="checkbox" ${todo.completed ? "checked" : ""} />
       <span class="visually-hidden">Mark ${escapeHtml(todo.title)} complete</span>
     </label>
+    ${
+      imageUrl
+        ? `<img class="todo-thumb" src="${escapeHtml(imageUrl)}" alt="" />`
+        : `<span class="todo-thumb todo-thumb-empty" aria-hidden="true"></span>`
+    }
     <p class="todo-title">${escapeHtml(todo.title)}</p>
     <div class="todo-actions">
       <button type="button" data-action="edit">Edit</button>
       <button type="button" data-action="delete">Delete</button>
+      ${
+        todo.image
+          ? `<button type="button" data-action="remove-image">Remove image</button>`
+          : `<label class="todo-attach">Add image<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" /></label>`
+      }
     </div>
   `;
   return li;
