@@ -73,4 +73,26 @@ describe("MemoryStorageAdapter", () => {
       storage.update("11111111-1111-4111-8111-111111111111", { title: "Nope" }),
     ).rejects.toBeInstanceOf(StorageNotFoundError);
   });
+
+  it("clears and bulk-creates records", async () => {
+    const storage = new MemoryStorageAdapter();
+    await storage.init();
+    await storage.create({ title: "Old" });
+    await storage.clear();
+    await storage.bulkCreate([
+      {
+        title: "A",
+        id: "11111111-1111-4111-8111-111111111111",
+        createdAt: "2026-09-15T08:00:00.000Z",
+        updatedAt: "2026-09-15T08:00:00.000Z",
+      },
+      {
+        title: "B",
+        id: "22222222-2222-4222-8222-222222222222",
+        createdAt: "2026-09-15T09:00:00.000Z",
+        updatedAt: "2026-09-15T09:00:00.000Z",
+      },
+    ]);
+    expect((await storage.query()).total).toBe(2);
+  });
 });

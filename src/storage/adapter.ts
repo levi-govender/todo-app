@@ -33,6 +33,8 @@ export interface StorageAdapter {
   delete(id: string): Promise<void>;
   get(id: string): Promise<Todo | null>;
   query(query?: TodoQuery): Promise<TodoQueryResult>;
+  clear(): Promise<void>;
+  bulkCreate(inputs: CreateTodoInput[]): Promise<void>;
 }
 
 export class StorageNotFoundError extends Error {

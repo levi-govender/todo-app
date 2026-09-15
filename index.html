@@ -20,6 +20,24 @@
           </select>
           <p id="storage-note"></p>
         </div>
+        <section id="seed-panel" hidden>
+          <h2>Dev seed data</h2>
+          <p>Deterministic datasets for performance work. Same seed and count always produce the same records. Visible only in <code>make dev</code>.</p>
+          <form id="seed-form">
+            <label for="seed-value">Seed
+              <input id="seed-value" name="seed" type="text" value="todo-app" autocomplete="off" />
+            </label>
+            <label for="seed-count">Count
+              <select id="seed-count">
+                <option value="10000" selected>10,000</option>
+                <option value="50000">50,000</option>
+                <option value="100000">100,000</option>
+              </select>
+            </label>
+            <button type="submit">Seed current storage</button>
+            <button type="button" data-action="clear-all">Clear current storage</button>
+          </form>
+        </section>
       </header>
 
       <main>

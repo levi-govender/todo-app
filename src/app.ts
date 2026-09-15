@@ -1,4 +1,5 @@
 import { TodoValidationError, type CreateTodoInput, type Todo } from "./domain/todo.ts";
+import { DEFAULT_SEED, DEFAULT_SEED_COUNT, generateTodoInputs } from "./seed/generate.ts";
 import {
   type StorageAdapter,
   type StorageMode,
@@ -107,6 +108,22 @@ export class TodoApp {
   async remove(id: string): Promise<void> {
     await this.run(async () => {
       await this.adapter.delete(id);
+      await this.reload();
+    });
+  }
+
+  async seed(seed = DEFAULT_SEED, count: number = DEFAULT_SEED_COUNT): Promise<void> {
+    await this.run(async () => {
+      const inputs = generateTodoInputs({ seed, count });
+      await this.adapter.clear();
+      await this.adapter.bulkCreate(inputs);
+      await this.reload();
+    });
+  }
+
+  async clearAll(): Promise<void> {
+    await this.run(async () => {
+      await this.adapter.clear();
       await this.reload();
     });
   }
