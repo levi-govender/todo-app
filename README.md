@@ -37,4 +37,4 @@ Image bytes live in a separate `images` store (or in-memory map). Todo rows keep
 
 ## Next
 
-1. Storage failure/recovery, then accessibility
+1. Accessibility and responsive behaviour

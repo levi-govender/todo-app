@@ -5,6 +5,7 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
   const titleInput = must<HTMLInputElement>(root, "#todo-title");
   const imageInput = must<HTMLInputElement>(root, "#todo-image");
   const formError = must(root, "#form-error");
+  const retry = must<HTMLButtonElement>(root, "#storage-retry");
   const list = must(root, "#todo-list");
   const status = must(root, "#list-status");
   const empty = must(root, "#empty-state");
@@ -72,6 +73,9 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
   clearButton?.addEventListener("click", () => {
     void app.clearAll();
   });
+  retry.addEventListener("click", () => {
+    void app.retry();
+  });
   loadMore.addEventListener("click", () => {
     void app.loadMore();
   });
@@ -136,6 +140,7 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
     modeNote.textContent = state.modeNote;
     formError.hidden = !state.error;
     formError.textContent = state.error ?? "";
+    retry.hidden = !state.retryable;
     status.textContent = state.loading
       ? "Loading todos…"
       : state.total === 0

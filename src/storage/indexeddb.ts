@@ -14,10 +14,12 @@ import {
   type StorageCapabilities,
   StorageNotFoundError,
   StorageUnavailableError,
+  mapStorageError,
   type TodoQuery,
   type TodoQueryResult,
 } from "./adapter.ts";
 import { applyTodoQuery } from "./query.ts";
+import { retryOnce } from "./retry.ts";
 
 export const TODO_DB_NAME = "todo-app";
 export const TODO_DB_VERSION = 2;
@@ -39,7 +41,7 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
 
   async init(): Promise<void> {
     this.db?.close();
-    this.db = await openDatabase(this.dbName);
+    this.db = await retryOnce(() => openDatabase(this.dbName));
   }
 
   async create(input: CreateTodoInput): Promise<Todo> {
@@ -75,6 +77,10 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
   }
 
   async query(query?: TodoQuery): Promise<TodoQueryResult> {
+    return retryOnce(() => this.executeQuery(query));
+  }
+
+  private async executeQuery(query?: TodoQuery): Promise<TodoQueryResult> {
     const db = this.requireDb();
     const rawItems = await requestToPromise(this.store(db, "readonly").getAll());
     const todos: Todo[] = [];
@@ -212,6 +218,5 @@ function transactionDone(tx: IDBTransaction): Promise<void> {
 }
 
 function toUnavailable(error: unknown): StorageUnavailableError {
-  const message = error instanceof Error ? error.message : "IndexedDB request failed.";
-  return new StorageUnavailableError(message);
+  return mapStorageError(error);
 }

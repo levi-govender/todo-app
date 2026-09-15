@@ -59,3 +59,12 @@ The selected mode is remembered in `localStorage` (`todo-app.storageMode`) so a 
 ## Performance
 
 Budgets and the repeatable 10k harness live in `src/perf/` and `docs/performance-budgets.md`. `make bench` (and `make test`) compare seed, first page, search, filter, sort, combined query, image get, page size, estimated DOM cost, and heap against those thresholds. `TodoApp` records `todo-query` Performance API measures around list queries.
+
+## Failure and recovery
+
+- `TodoValidationError` / `ImageValidationError` — invalid input; the write does not happen.
+- `StorageNotFoundError` — update/delete of a missing id.
+- `StorageQuotaError` — disk quota; not retried automatically.
+- `StorageUnavailableError` — missing IndexedDB, blocked upgrade, or failed request. Reads and `init()` retry once. Writes are not retried so a timeout cannot create duplicates.
+
+Corrupt todo rows are skipped in `query()`. If persistent or scalable `init()` fails at startup, the app falls back to ephemeral for the session, keeps the saved mode preference, and shows **Retry storage**. Switching modes only commits after `init()` succeeds.
