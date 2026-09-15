@@ -93,6 +93,66 @@ describe("ScalableStorageAdapter", () => {
     expect(result.nextCursor).toBeTruthy();
   });
 
+  it("sorts by title, createdAt, and updatedAt with stable id tie-break", async () => {
+    const storage = new ScalableStorageAdapter(`todo-scale-${crypto.randomUUID()}`);
+    await storage.init();
+    const stamp = "2026-09-15T10:00:00.000Z";
+    await storage.bulkCreate([
+      {
+        title: "Beta",
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        createdAt: stamp,
+        updatedAt: "2026-09-15T12:00:00.000Z",
+      },
+      {
+        title: "Alpha",
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        createdAt: stamp,
+        updatedAt: "2026-09-15T11:00:00.000Z",
+      },
+    ]);
+    const byTitle = await storage.query({ sortBy: "title", sortDir: "asc", limit: 10 });
+    expect(byTitle.items.map((todo) => todo.title)).toEqual(["Alpha", "Beta"]);
+    const byCreated = await storage.query({ sortBy: "createdAt", sortDir: "asc", limit: 10 });
+    expect(byCreated.items.map((todo) => todo.id)).toEqual([
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    ]);
+    const byUpdated = await storage.query({ sortBy: "updatedAt", sortDir: "desc", limit: 10 });
+    expect(byUpdated.items.map((todo) => todo.title)).toEqual(["Beta", "Alpha"]);
+  });
+
+  it("combines prefix search, completion filter, and createdAt sort at 10k", async () => {
+    const storage = new ScalableStorageAdapter(`todo-scale-${crypto.randomUUID()}`);
+    await storage.init();
+    await storage.bulkCreate(generateTodoInputs({ seed: "ten-k", count: 10_000 }));
+    const query = {
+      search: "buy",
+      completed: true,
+      sortBy: "createdAt" as const,
+      sortDir: "desc" as const,
+      limit: 15,
+    };
+    const first = await storage.query(query);
+    const again = await storage.query(query);
+    expect(first.items).toEqual(again.items);
+    expect(first.items.every((todo) => todo.completed && todo.title.toLowerCase().startsWith("buy"))).toBe(
+      true,
+    );
+    expect(first.total).toBeGreaterThan(0);
+    expect(first.items.length).toBeLessThanOrEqual(15);
+    for (let i = 1; i < first.items.length; i += 1) {
+      const prev = first.items[i - 1];
+      const next = first.items[i];
+      if (!prev || !next) continue;
+      expect(next.createdAt <= prev.createdAt).toBe(true);
+    }
+    if (first.nextCursor) {
+      const page = await storage.query({ ...query, cursor: first.nextCursor });
+      expect(page.items[0]?.id).not.toBe(first.items[0]?.id);
+    }
+  });
+
   it("throws when updating a missing record", async () => {
     const storage = new ScalableStorageAdapter(`todo-scale-${crypto.randomUUID()}`);
     await storage.init();
