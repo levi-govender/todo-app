@@ -26,11 +26,14 @@ Invalid records throw `TodoValidationError`. `migrateTodo()` lifts older shapes 
 
 `StorageAdapter` is the only persistence boundary:
 
-- `init()`
-- `create` / `update` / `delete` / `get`
-- `query({ search, completed, sortBy, sortDir, cursor, limit })`
+- `init()` / `create` / `update` / `delete` / `get` / `query`
+- `clear()` / `bulkCreate()` for deterministic seed datasets
 
 Adapters register in `src/storage/registry.ts`. Changing the storage selector replaces the adapter instance. Modes do not share data.
+
+## Seed data
+
+`src/seed/generate.ts` builds repeatable todos from a string seed and a count (10k / 50k / 100k). The same seed always yields the same ids, titles, completion flags, and timestamps. Dev-only controls in `make dev` write the current adapter via `TodoApp.seed()` / `clearAll()`.
 
 ## Ephemeral mode
 

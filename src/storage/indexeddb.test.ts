@@ -40,6 +40,23 @@ describe("IndexedDbStorageAdapter", () => {
     const result = await storage.query();
     expect(result.items.map((item) => item.title)).toEqual(["Good"]);
   });
+
+  it("clears and bulk-creates records", async () => {
+    const storage = new IndexedDbStorageAdapter(`todo-test-${crypto.randomUUID()}`);
+    await storage.init();
+    await storage.create({ title: "Old" });
+    await storage.clear();
+    await storage.bulkCreate([
+      {
+        title: "A",
+        id: "11111111-1111-4111-8111-111111111111",
+        createdAt: "2026-09-15T08:00:00.000Z",
+        updatedAt: "2026-09-15T08:00:00.000Z",
+      },
+    ]);
+    expect((await storage.query()).total).toBe(1);
+    expect((await storage.query()).items[0]?.title).toBe("A");
+  });
 });
 
 function injectCorruptRecord(dbName: string): Promise<void> {
