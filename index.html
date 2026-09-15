@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Todo</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#todo-list">Skip to todos</a>
+    <div class="layout">
+      <header>
+        <h1>Todo</h1>
+        <p class="lede">Create, complete, edit, and find todos. Storage is swapped behind one adapter contract.</p>
+        <div class="panel">
+          <label for="storage-mode">Storage mode</label>
+          <select id="storage-mode">
+            <option value="ephemeral">Ephemeral (memory)</option>
+            <option value="persistent" disabled>Persistent (IndexedDB) — not implemented</option>
+            <option value="scalable" disabled>Scalable (10k+) — not implemented</option>
+          </select>
+          <p id="storage-note"></p>
+        </div>
+      </header>
+
+      <main>
+        <section aria-labelledby="add-heading">
+          <h2 id="add-heading">Add a todo</h2>
+          <form id="todo-form">
+            <label for="todo-title">Title</label>
+            <input
+              id="todo-title"
+              name="title"
+              type="text"
+              required
+              maxlength="200"
+              autocomplete="off"
+              placeholder="Buy milk"
+            />
+            <button type="submit">Add todo</button>
+            <p id="form-error" role="alert" hidden></p>
+          </form>
+        </section>
+
+        <section aria-labelledby="toolbar-heading">
+          <h2 id="toolbar-heading" class="visually-hidden">Search, filter, and sort</h2>
+          <div class="toolbar">
+            <label for="todo-search">Search
+              <input id="todo-search" type="search" placeholder="Search titles" />
+            </label>
+            <label for="todo-filter">Status
+              <select id="todo-filter">
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+            </label>
+            <label for="todo-sort">Sort
+              <select id="todo-sort">
+                <option value="createdAt:desc">Newest</option>
+                <option value="createdAt:asc">Oldest</option>
+                <option value="updatedAt:desc">Recently updated</option>
+                <option value="title:asc">Title A–Z</option>
+                <option value="title:desc">Title Z–A</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section aria-labelledby="list-heading">
+          <h2 id="list-heading">Todos</h2>
+          <p id="list-status" role="status"></p>
+          <p id="empty-state">No todos yet. Add one above.</p>
+          <ul id="todo-list"></ul>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
