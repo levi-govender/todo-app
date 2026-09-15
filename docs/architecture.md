@@ -32,7 +32,7 @@ Invalid records throw `TodoValidationError`. `migrateTodo()` lifts older shapes 
 - `clear()` / `bulkCreate()` for deterministic seed datasets
 - `putImage` / `getImage` / `deleteImage` for binary payloads keyed by image id (never on the todo record)
 
-Adapters register in `src/storage/registry.ts`. Changing the storage selector replaces the adapter instance. Modes do not share data.
+Adapters register in `src/storage/registry.ts`. Changing the storage selector replaces the adapter instance. Modes do not share data. `src/storage/contract.ts` runs the same CRUD, validation, query, image, error, and lifecycle cases against every adapter; persistent and scalable also reopen a new instance against the same database.
 
 ## Seed data
 

@@ -28,7 +28,7 @@ Image bytes live in a separate `images` store (or in-memory map). Todo rows keep
 
 - `src/domain` — canonical Todo model and validation
 - `src/seed` — deterministic benchmark datasets
-- `src/storage` — adapter contract, registry, memory, IndexedDB, and scalable adapters
+- `src/storage` — adapter contract, shared contract tests, registry, memory, IndexedDB, and scalable adapters
 - `src/perf` — documented budgets and the 10k benchmark harness
 - `src/ui` — DOM binding; no persistence imports
 - `src/app.ts` — application state
@@ -37,4 +37,4 @@ Image bytes live in a separate `images` store (or in-memory map). Todo rows keep
 
 ## Next
 
-1. Adapter contract tests, storage failure/recovery, or accessibility (remaining P1s)
+1. Storage failure/recovery, then accessibility
