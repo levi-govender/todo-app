@@ -1,6 +1,26 @@
-node_modules
-dist
-coverage
-.DS_Store
+# Dependencies
+node_modules/
+
+# Build and cache
+dist/
+dist-ssr/
+.vite/
+*.tsbuildinfo
+
+# Tests
+coverage/
+
+# Env and local overrides
+.env
+.env.*
+!.env.example
 *.local
-.vite
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
