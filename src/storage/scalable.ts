@@ -15,10 +15,10 @@ import {
   type TodoQuery,
   type TodoQueryResult,
 } from "./adapter.ts";
-import { clampLimit } from "./query.ts";
+import { clampLimit, compareTodos } from "./query.ts";
 
 export const SCALABLE_DB_NAME = "todo-app-scalable";
-export const SCALABLE_DB_VERSION = 2;
+export const SCALABLE_DB_VERSION = 3;
 export const SCALABLE_STORE = "todos";
 
 type Keyset = { value: string; id: string };
@@ -73,21 +73,32 @@ export class ScalableStorageAdapter implements StorageAdapter {
   async query(query: TodoQuery = {}): Promise<TodoQueryResult> {
     const db = this.requireDb();
     const search = query.search?.trim().toLowerCase() ?? "";
-    const sortBy = search ? "title" : (query.sortBy ?? "createdAt");
-    const sortDir = search ? "asc" : (query.sortDir ?? "desc");
+    const sortBy = query.sortBy ?? "createdAt";
+    const sortDir = query.sortDir ?? "desc";
     const limit = clampLimit(query.limit);
     const keyset = decodeKeyset(query.cursor);
-    const store = this.store(db, "readonly");
-    const index = store.index(search ? "titleSearch" : sortBy);
-    const direction: IDBCursorDirection = sortDir === "asc" ? "next" : "prev";
     const completed = query.completed;
-    const range = search ? titlePrefixRange(search) : null;
+
+    if (search) {
+      return this.queryPrefixThenSort({
+        search,
+        sortBy,
+        sortDir,
+        limit,
+        keyset,
+        completed,
+      });
+    }
+
+    const store = this.store(db, "readonly");
+    const index = store.index(`${sortBy}_id`);
+    const direction: IDBCursorDirection = sortDir === "asc" ? "next" : "prev";
 
     const items: Todo[] = [];
     let matchCount = 0;
     let hasMore = false;
 
-    await walkCursor(index, range, direction, (raw) => {
+    await walkCursor(index, null, direction, (raw) => {
       let todo: Todo;
       try {
         todo = readTodo(raw);
@@ -96,7 +107,6 @@ export class ScalableStorageAdapter implements StorageAdapter {
       }
       if (completed === true && !todo.completed) return;
       if (completed === false && todo.completed) return;
-      if (search && !todo.title.toLowerCase().startsWith(search)) return false;
       matchCount += 1;
       if (!isAfterKeyset(todo, sortBy, sortDir, keyset)) return;
       if (items.length < limit) {
@@ -104,22 +114,66 @@ export class ScalableStorageAdapter implements StorageAdapter {
         return;
       }
       hasMore = true;
-      if (!search && completed !== true && completed !== false) return false;
-      if (search && completed !== true && completed !== false) return false;
+      if (completed !== true && completed !== false) return false;
     });
 
     const total =
-      search && completed !== true && completed !== false && range
-        ? await requestToPromise(index.count(range))
-        : search || completed === true || completed === false
-          ? matchCount
-          : await requestToPromise(index.count());
+      completed === true || completed === false
+        ? matchCount
+        : await requestToPromise(index.count());
     const last = items[items.length - 1];
 
     return {
       items,
       nextCursor: hasMore && last ? encodeKeyset({ value: String(last[sortBy]), id: last.id }) : null,
       total,
+    };
+  }
+
+  private async queryPrefixThenSort(options: {
+    search: string;
+    sortBy: NonNullable<TodoQuery["sortBy"]>;
+    sortDir: NonNullable<TodoQuery["sortDir"]>;
+    limit: number;
+    keyset: Keyset | null;
+    completed: boolean | null | undefined;
+  }): Promise<TodoQueryResult> {
+    const db = this.requireDb();
+    const index = this.store(db, "readonly").index("titleSearch");
+    const matched: Todo[] = [];
+
+    await walkCursor(index, titlePrefixRange(options.search), "next", (raw) => {
+      let todo: Todo;
+      try {
+        todo = readTodo(raw);
+      } catch {
+        return;
+      }
+      if (!todo.title.toLowerCase().startsWith(options.search)) return false;
+      if (options.completed === true && !todo.completed) return;
+      if (options.completed === false && todo.completed) return;
+      matched.push(todo);
+    });
+
+    matched.sort((a, b) => compareTodos(a, b, options.sortBy, options.sortDir));
+
+    const items: Todo[] = [];
+    let hasMore = false;
+    for (const todo of matched) {
+      if (!isAfterKeyset(todo, options.sortBy, options.sortDir, options.keyset)) continue;
+      if (items.length < options.limit) {
+        items.push(todo);
+        continue;
+      }
+      hasMore = true;
+      break;
+    }
+    const last = items[items.length - 1];
+    return {
+      items,
+      nextCursor:
+        hasMore && last ? encodeKeyset({ value: String(last[options.sortBy]), id: last.id }) : null,
+      total: matched.length,
     };
   }
 
@@ -257,6 +311,9 @@ function openDatabase(name: string): Promise<IDBDatabase> {
       ensureIndex(store, "title", "title");
       ensureIndex(store, "titleSearch", "titleSearch");
       ensureIndex(store, "completed", "completed");
+      ensureIndex(store, "createdAt_id", ["createdAt", "id"]);
+      ensureIndex(store, "updatedAt_id", ["updatedAt", "id"]);
+      ensureIndex(store, "title_id", ["title", "id"]);
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(toUnavailable(request.error));
@@ -265,7 +322,7 @@ function openDatabase(name: string): Promise<IDBDatabase> {
   });
 }
 
-function ensureIndex(store: IDBObjectStore, name: string, keyPath: string): void {
+function ensureIndex(store: IDBObjectStore, name: string, keyPath: string | string[]): void {
   if (!store.indexNames.contains(name)) {
     store.createIndex(name, keyPath, { unique: false });
   }

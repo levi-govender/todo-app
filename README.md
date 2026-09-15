@@ -18,7 +18,7 @@ Open the printed local URL. Add, complete, edit, delete, search, filter, and sor
 
 - **Ephemeral:** refresh clears the list.
 - **Persistent:** refresh keeps the list (IndexedDB, loads matching rows into memory then pages).
-- **Scalable:** refresh keeps the list in a separate IndexedDB; the list is index-paged (50 at a time). Title search is prefix-indexed and debounced.
+- **Scalable:** refresh keeps the list in a separate IndexedDB; the list is index-paged (50 at a time). Title search is prefix-indexed and debounced. Filter and sort stay deterministic, including combined queries.
 
 In `make dev`, a **Dev seed data** panel can load 10k, 50k, or 100k deterministic records into the current storage mode (`seed=todo-app` by default). Production builds hide those controls.
 
@@ -35,5 +35,5 @@ Scalable 10k+ storage pages through IndexedDB indexes. Image bytes are still not
 
 ## Next
 
-1. Deterministic filter/sort composition at 10k+
-2. Image bytes stored separately from list metadata
+1. Image bytes stored separately from list metadata
+2. Performance budgets and a benchmark harness

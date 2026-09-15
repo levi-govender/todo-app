@@ -29,7 +29,7 @@ export function applyTodoQuery(records: readonly Todo[], query: TodoQuery = {}):
   };
 }
 
-function compareTodos(
+export function compareTodos(
   a: Todo,
   b: Todo,
   sortBy: NonNullable<TodoQuery["sortBy"]>,
@@ -40,7 +40,9 @@ function compareTodos(
   const direction = sortDir === "asc" ? 1 : -1;
   if (left < right) return -1 * direction;
   if (left > right) return 1 * direction;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  if (a.id < b.id) return -1 * direction;
+  if (a.id > b.id) return 1 * direction;
+  return 0;
 }
 
 export function clampLimit(limit: number | undefined): number {
