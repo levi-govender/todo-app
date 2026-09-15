@@ -57,11 +57,30 @@ describe("IndexedDbStorageAdapter", () => {
     expect((await storage.query()).total).toBe(1);
     expect((await storage.query()).items[0]?.title).toBe("A");
   });
+
+  it("stores image bytes in a separate object store", async () => {
+    const dbName = `todo-test-${crypto.randomUUID()}`;
+    const storage = new IndexedDbStorageAdapter(dbName);
+    await storage.init();
+    const image = await storage.putImage({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      mimeType: "image/jpeg",
+      sizeBytes: 3,
+      bytes: new Uint8Array([255, 216, 255]).buffer,
+    });
+    const todo = await storage.create({ title: "Photo", image });
+    const again = new IndexedDbStorageAdapter(dbName);
+    await again.init();
+    expect((await again.get(todo.id))?.image?.id).toBe(image.id);
+    expect((await again.getImage(image.id))?.mimeType).toBe("image/jpeg");
+    await again.delete(todo.id);
+    expect(await again.getImage(image.id)).toBeNull();
+  });
 });
 
 function injectCorruptRecord(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(dbName, 1);
+    const request = indexedDB.open(dbName);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const db = request.result;

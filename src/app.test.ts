@@ -34,6 +34,13 @@ class DelayedSearchAdapter implements StorageAdapter {
     this.records = [];
   }
   async bulkCreate(): Promise<void> {}
+  async putImage(): Promise<never> {
+    throw new Error("unused");
+  }
+  async getImage() {
+    return null;
+  }
+  async deleteImage(): Promise<void> {}
 }
 
 describe("TodoApp search sequencing", () => {

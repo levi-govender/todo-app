@@ -22,7 +22,7 @@ Open the printed local URL. Add, complete, edit, delete, search, filter, and sor
 
 In `make dev`, a **Dev seed data** panel can load 10k, 50k, or 100k deterministic records into the current storage mode (`seed=todo-app` by default). Production builds hide those controls.
 
-Scalable 10k+ storage pages through IndexedDB indexes. Image bytes are still not stored.
+Image bytes live in a separate `images` store (or in-memory map). Todo rows keep only an `ImageRef`. JPEG, PNG, WebP, and GIF up to 2MB are accepted.
 
 ## Layout
 
@@ -35,5 +35,5 @@ Scalable 10k+ storage pages through IndexedDB indexes. Image bytes are still not
 
 ## Next
 
-1. Image bytes stored separately from list metadata
+1. Lazy-load image bytes
 2. Performance budgets and a benchmark harness

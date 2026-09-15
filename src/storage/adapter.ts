@@ -1,4 +1,5 @@
-import type { CreateTodoInput, Todo, UpdateTodoInput } from "../domain/todo.ts";
+import type { ImageBytes } from "../domain/image.ts";
+import type { CreateTodoInput, ImageRef, Todo, UpdateTodoInput } from "../domain/todo.ts";
 
 export type StorageMode = "ephemeral" | "persistent" | "scalable";
 
@@ -35,6 +36,9 @@ export interface StorageAdapter {
   query(query?: TodoQuery): Promise<TodoQueryResult>;
   clear(): Promise<void>;
   bulkCreate(inputs: CreateTodoInput[]): Promise<void>;
+  putImage(image: ImageBytes): Promise<ImageRef>;
+  getImage(id: string): Promise<ImageBytes | null>;
+  deleteImage(id: string): Promise<void>;
 }
 
 export class StorageNotFoundError extends Error {
