@@ -11,6 +11,7 @@ import { createAdapter } from "./storage/registry.ts";
 import { loadStorageMode, saveStorageMode } from "./storage/settings.ts";
 
 export const LIST_PAGE_SIZE = 50;
+export const IMAGE_CACHE_LIMIT = 24;
 
 export type AppState = {
   items: Todo[];
@@ -34,6 +35,8 @@ export class TodoApp {
   private adapter: StorageAdapter;
   private listeners = new Set<AppListener>();
   private querySeq = 0;
+  private imageCache = new Map<string, string>();
+  private imageLoads = 0;
   private state: AppState = {
     items: [],
     total: 0,
@@ -79,11 +82,13 @@ export class TodoApp {
       this.adapter = createAdapter(mode);
       await this.adapter.init();
       saveStorageMode(mode);
+      this.clearImageCache();
       this.patch({
         mode: this.adapter.id,
         modeNote: modeNote(this.adapter),
         editingId: null,
         nextCursor: null,
+        imageUrls: {},
       });
       await this.reload();
     });
@@ -203,6 +208,32 @@ export class TodoApp {
     this.patch({ editingId: null });
   }
 
+  async loadImage(todoId: string): Promise<void> {
+    const todo = this.state.items.find((item) => item.id === todoId);
+    if (!todo?.image) return;
+    if (this.imageCache.has(todoId)) return;
+    const stored = await this.adapter.getImage(todo.image.id);
+    if (!stored) return;
+    if (this.state.items.every((item) => item.id !== todoId)) return;
+    if (this.imageCache.has(todoId)) return;
+    this.imageLoads += 1;
+    const url =
+      typeof URL !== "undefined" && typeof Blob !== "undefined"
+        ? URL.createObjectURL(new Blob([stored.bytes], { type: stored.mimeType }))
+        : `loaded:${todo.image.id}`;
+    this.imageCache.set(todoId, url);
+    while (this.imageCache.size > IMAGE_CACHE_LIMIT) {
+      const oldest = this.imageCache.keys().next().value;
+      if (!oldest) break;
+      this.revokeCached(oldest);
+    }
+    this.patch({ imageUrls: Object.fromEntries(this.imageCache) });
+  }
+
+  imageLoadCount(): number {
+    return this.imageLoads;
+  }
+
   async loadMore(): Promise<void> {
     const cursor = this.state.nextCursor;
     if (!cursor) return;
@@ -218,17 +249,13 @@ export class TodoApp {
         limit: LIST_PAGE_SIZE,
       });
       if (seq !== this.querySeq) return;
-      const imageUrls = await this.urlsFor(result.items);
-      if (seq !== this.querySeq) {
-        revokeUrls(imageUrls);
-        return;
-      }
-      this.replaceImageUrls();
+      const items = [...this.state.items, ...result.items];
+      this.pruneImageCache(items);
       this.patch({
-        items: result.items,
+        items,
         total: result.total,
         nextCursor: result.nextCursor,
-        imageUrls,
+        imageUrls: Object.fromEntries(this.imageCache),
       });
     });
   }
@@ -248,29 +275,30 @@ export class TodoApp {
       limit: LIST_PAGE_SIZE,
     });
     if (seq !== this.querySeq) return;
-    const imageUrls = await this.urlsFor(result.items);
-    if (seq !== this.querySeq) {
-      revokeUrls(imageUrls);
-      return;
-    }
-    this.replaceImageUrls();
-    this.patch({ items: result.items, total: result.total, nextCursor: result.nextCursor, imageUrls });
+    this.pruneImageCache(result.items);
+    this.patch({
+      items: result.items,
+      total: result.total,
+      nextCursor: result.nextCursor,
+      imageUrls: Object.fromEntries(this.imageCache),
+    });
   }
 
-  private async urlsFor(items: Todo[]): Promise<Record<string, string>> {
-    const urls: Record<string, string> = {};
-    if (typeof URL === "undefined" || typeof Blob === "undefined") return urls;
-    for (const item of items) {
-      if (!item.image) continue;
-      const stored = await this.adapter.getImage(item.image.id);
-      if (!stored) continue;
-      urls[item.id] = URL.createObjectURL(new Blob([stored.bytes], { type: stored.mimeType }));
+  private pruneImageCache(items: Todo[]): void {
+    const keep = new Set(items.map((item) => item.id));
+    for (const id of [...this.imageCache.keys()]) {
+      if (!keep.has(id)) this.revokeCached(id);
     }
-    return urls;
   }
 
-  private replaceImageUrls(): void {
-    revokeUrls(this.state.imageUrls);
+  private clearImageCache(): void {
+    for (const id of [...this.imageCache.keys()]) this.revokeCached(id);
+  }
+
+  private revokeCached(todoId: string): void {
+    const url = this.imageCache.get(todoId);
+    this.imageCache.delete(todoId);
+    if (url && typeof URL !== "undefined" && url.startsWith("blob:")) URL.revokeObjectURL(url);
   }
 
   private async run(work: () => Promise<void>): Promise<void> {
@@ -300,11 +328,6 @@ function modeNote(adapter: StorageAdapter): string {
     return "Scalable mode stores todos in a separate IndexedDB, pages through indexes, and prefix-searches titles so 10k+ records stay out of the DOM.";
   }
   return "Persistent mode stores todos in IndexedDB. They survive refresh and browser restart.";
-}
-
-function revokeUrls(urls: Record<string, string>): void {
-  if (typeof URL === "undefined") return;
-  for (const url of Object.values(urls)) URL.revokeObjectURL(url);
 }
 
 function toUserMessage(error: unknown): string {
