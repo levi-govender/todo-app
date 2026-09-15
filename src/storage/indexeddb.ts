@@ -82,6 +82,20 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
     return applyTodoQuery(todos, query);
   }
 
+  async clear(): Promise<void> {
+    const db = this.requireDb();
+    await requestToPromise(this.store(db, "readwrite").clear());
+  }
+
+  async bulkCreate(inputs: CreateTodoInput[]): Promise<void> {
+    const db = this.requireDb();
+    const store = this.store(db, "readwrite");
+    for (const input of inputs) {
+      store.put(createTodo(input));
+    }
+    await transactionDone(store.transaction);
+  }
+
   private put(todo: Todo): Promise<IDBValidKey> {
     const db = this.requireDb();
     return requestToPromise(this.store(db, "readwrite").put(todo));
@@ -153,6 +167,14 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(toUnavailable(request.error));
+  });
+}
+
+function transactionDone(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(toUnavailable(tx.error));
+    tx.onabort = () => reject(toUnavailable(tx.error));
   });
 }
 

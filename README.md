@@ -19,11 +19,14 @@ Open the printed local URL. Add, complete, edit, delete, search, filter, and sor
 - **Ephemeral:** refresh clears the list.
 - **Persistent:** refresh keeps the list (IndexedDB).
 
+In `make dev`, a **Dev seed data** panel can load 10k, 50k, or 100k deterministic records into the current storage mode (`seed=todo-app` by default). Production builds hide those controls.
+
 Scalable 10k+ storage is still disabled.
 
 ## Layout
 
 - `src/domain` — canonical Todo model and validation
+- `src/seed` — deterministic benchmark datasets
 - `src/storage` — adapter contract, registry, memory and IndexedDB adapters
 - `src/ui` — DOM binding; no persistence imports
 - `src/app.ts` — application state
@@ -31,6 +34,5 @@ Scalable 10k+ storage is still disabled.
 
 ## Next
 
-1. Deterministic 10k seed generator
-2. Indexed query/search/sort for large datasets
-3. Image bytes stored separately from list metadata
+1. Indexed query/search/sort for large datasets
+2. Image bytes stored separately from list metadata

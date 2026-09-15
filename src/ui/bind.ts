@@ -1,6 +1,6 @@
 import type { AppState, TodoApp } from "../app.ts";
 
-export function bindUi(root: Document, app: TodoApp): void {
+export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: boolean } = {}): void {
   const form = must(root, "#todo-form");
   const titleInput = must<HTMLInputElement>(root, "#todo-title");
   const formError = must(root, "#form-error");
@@ -12,6 +12,15 @@ export function bindUi(root: Document, app: TodoApp): void {
   const sort = must<HTMLSelectElement>(root, "#todo-sort");
   const mode = must<HTMLSelectElement>(root, "#storage-mode");
   const modeNote = must(root, "#storage-note");
+  const seedPanel = root.querySelector("#seed-panel");
+  const seedForm = root.querySelector("#seed-form");
+  const seedInput = root.querySelector<HTMLInputElement>("#seed-value");
+  const seedCount = root.querySelector<HTMLSelectElement>("#seed-count");
+  const clearButton = root.querySelector<HTMLButtonElement>("[data-action=clear-all]");
+
+  if (options.showSeedTools && seedPanel instanceof HTMLElement) {
+    seedPanel.hidden = false;
+  }
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -40,6 +49,17 @@ export function bindUi(root: Document, app: TodoApp): void {
   });
   mode.addEventListener("change", () => {
     void app.setMode(mode.value as AppState["mode"]);
+  });
+
+  if (seedForm instanceof HTMLFormElement && seedInput && seedCount) {
+    seedForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const count = Number(seedCount.value);
+      void app.seed(seedInput.value, count);
+    });
+  }
+  clearButton?.addEventListener("click", () => {
+    void app.clearAll();
   });
 
   list.addEventListener("change", (event) => {

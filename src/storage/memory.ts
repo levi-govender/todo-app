@@ -54,4 +54,15 @@ export class MemoryStorageAdapter implements StorageAdapter {
   async query(query?: TodoQuery): Promise<TodoQueryResult> {
     return applyTodoQuery([...this.records.values()], query);
   }
+
+  async clear(): Promise<void> {
+    this.records.clear();
+  }
+
+  async bulkCreate(inputs: CreateTodoInput[]): Promise<void> {
+    for (const input of inputs) {
+      const todo = createTodo(input);
+      this.records.set(todo.id, todo);
+    }
+  }
 }
