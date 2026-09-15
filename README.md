@@ -22,7 +22,7 @@ Open the printed local URL. Add, complete, edit, delete, search, filter, and sor
 
 In `make dev`, a **Dev seed data** panel can load 10k, 50k, or 100k deterministic records into the current storage mode (`seed=todo-app` by default). Production builds hide those controls.
 
-Image bytes live in a separate `images` store (or in-memory map). Todo rows keep only an `ImageRef`. JPEG, PNG, WebP, and GIF up to 2MB are accepted.
+Image bytes live in a separate `images` store (or in-memory map). Todo rows keep only an `ImageRef`. JPEG, PNG, WebP, and GIF up to 2MB are accepted. List queries never load bytes; thumbs fetch on visibility through a bounded blob-URL cache.
 
 ## Layout
 
@@ -35,5 +35,4 @@ Image bytes live in a separate `images` store (or in-memory map). Todo rows keep
 
 ## Next
 
-1. Lazy-load image bytes
-2. Performance budgets and a benchmark harness
+1. Performance budgets and a benchmark harness

@@ -113,6 +113,22 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
     void app.saveTitle(item.dataset.id, input.value);
   });
 
+  const observer =
+    typeof IntersectionObserver === "undefined"
+      ? null
+      : new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting || !(entry.target instanceof HTMLElement) || !entry.target.dataset.id) {
+                continue;
+              }
+              void app.loadImage(entry.target.dataset.id);
+              observer?.unobserve(entry.target);
+            }
+          },
+          { rootMargin: "80px" },
+        );
+
   app.subscribe((state) => render(state));
 
   function render(state: AppState): void {
@@ -132,6 +148,17 @@ export function bindUi(root: Document, app: TodoApp, options: { showSeedTools?: 
         renderItem(todo, state.editingId === todo.id, state.imageUrls[todo.id]),
       ),
     );
+    observeVisibleImages(state);
+  }
+
+  function observeVisibleImages(state: AppState): void {
+    if (!observer) return;
+    observer.disconnect();
+    for (const node of list.querySelectorAll<HTMLElement>("li[data-id][data-has-image]")) {
+      const id = node.dataset.id;
+      if (!id || state.imageUrls[id]) continue;
+      observer.observe(node);
+    }
   }
 }
 
@@ -142,6 +169,7 @@ function renderItem(
 ): HTMLLIElement {
   const li = document.createElement("li");
   li.dataset.id = todo.id;
+  if (todo.image) li.dataset.hasImage = "true";
   li.className = todo.completed ? "todo-item is-complete" : "todo-item";
 
   if (editing) {

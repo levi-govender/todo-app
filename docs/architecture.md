@@ -51,3 +51,7 @@ The selected mode is remembered in `localStorage` (`todo-app.storageMode`) so a 
 ## Scalable mode
 
 `ScalableStorageAdapter` in `src/storage/scalable.ts` uses a separate IndexedDB database (`todo-app-scalable`, schema version `4`) so it never shares rows with persistent mode. Image bytes use the same `images` object-store pattern as persistent mode. List queries walk compound `[sortField, id]` indexes with keyset cursors so sort order is deterministic. Search still uses the lowercase `titleSearch` prefix index, then sorts that prefix set by the requested field. Completion filters apply during the cursor walk. The search box is debounced (200ms). `TodoApp` ignores stale query results. Each page stays bounded; **Next page** advances the cursor and a new search/filter/sort resets pagination.
+
+## Images
+
+`query()` returns `ImageRef` metadata only. `TodoApp.loadImage()` fetches bytes through the adapter when a row is visible (`IntersectionObserver` in `src/ui/bind.ts`). Blob URLs are cached up to `IMAGE_CACHE_LIMIT` and revoked when the cache evicts, the list changes, or the storage mode switches.

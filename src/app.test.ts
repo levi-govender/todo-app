@@ -59,3 +59,37 @@ describe("TodoApp search sequencing", () => {
     expect(app.getState().items.map((todo) => todo.title)).toEqual(["AB"]);
   });
 });
+
+describe("TodoApp image lazy load", () => {
+  it("does not fetch image bytes until loadImage is called, and caches afterwards", async () => {
+    const { MemoryStorageAdapter } = await import("./storage/memory.ts");
+    const adapter = new MemoryStorageAdapter();
+    await adapter.init();
+    const image = await adapter.putImage({
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      mimeType: "image/png",
+      sizeBytes: 4,
+      bytes: new Uint8Array([1, 2, 3, 4]).buffer,
+    });
+    const originalGet = adapter.getImage.bind(adapter);
+    let fetches = 0;
+    adapter.getImage = async (id) => {
+      fetches += 1;
+      return originalGet(id);
+    };
+    await adapter.create({ title: "Photo", image });
+    adapter.init = async () => {};
+    const app = new TodoApp(adapter);
+    await app.start();
+    expect(fetches).toBe(0);
+    expect(app.getState().imageUrls).toEqual({});
+
+    const id = app.getState().items[0]?.id;
+    expect(id).toBeTruthy();
+    await app.loadImage(id ?? "");
+    await app.loadImage(id ?? "");
+    expect(fetches).toBe(1);
+    expect(app.getState().imageUrls[id ?? ""]).toBeTruthy();
+    expect(app.imageLoadCount()).toBe(1);
+  });
+});
