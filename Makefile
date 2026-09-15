@@ -9,6 +9,7 @@ help:
 	@echo "  make a11y     Run accessibility and responsive checks"
 	@echo "  make build    Typecheck and production build"
 	@echo "  make preview  Serve the production build"
+	@echo "Docs: docs/architecture.md docs/performance-budgets.md"
 
 install:
 	npm install
